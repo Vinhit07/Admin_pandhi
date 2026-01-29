@@ -17,6 +17,7 @@ import {
     DialogFooter,
 } from "../components/ui/dialog"
 import { Edit, Trash2, Upload } from "lucide-react"
+import { ProductCard } from "../components/ProductCard"
 
 interface Product {
     id: string
@@ -222,11 +223,11 @@ export const ProductManagement = () => {
         <div className="flex gap-6">
             {/* Left Side: Live Product Preview */}
             <div className="w-56 flex-shrink-0">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Live Preview</p>
-                <div className="bg-white border-2 border-gray-200 rounded-2xl overflow-hidden shadow-lg">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Live Preview</p>
+                <div className="bg-card border-2 border-border rounded-xl overflow-hidden shadow-sm">
                     {/* Preview Image */}
                     <div
-                        className="h-32 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center cursor-pointer relative overflow-hidden"
+                        className="h-32 bg-muted flex items-center justify-center cursor-pointer relative overflow-hidden group"
                         onClick={() => fileInputRef.current?.click()}
                     >
                         <input
@@ -239,88 +240,70 @@ export const ProductManagement = () => {
                         {formData.image ? (
                             <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
                         ) : (
-                            <div className="text-center">
-                                <Upload className="w-8 h-8 mx-auto text-gray-400 mb-1" />
-                                <p className="text-xs text-gray-400">Click to upload</p>
+                            <div className="text-center group-hover:scale-110 transition-transform">
+                                <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-1" />
+                                <p className="text-xs text-muted-foreground">Click to upload</p>
                             </div>
                         )}
                         {/* Food Type Badge */}
-                        <div className={`absolute top-2 right-2 w-5 h-5 rounded-sm border-2 ${formData.foodType === "vegetarian" ? "border-green-500" : "border-red-500"} bg-white flex items-center justify-center`}>
-                            <div className={`w-2 h-2 rounded-full ${formData.foodType === "vegetarian" ? "bg-green-500" : "bg-red-500"}`} />
-                        </div>
-                    </div>
-                    {/* Preview Info */}
-                    <div className="p-3">
-                        <span className="text-[10px] text-gray-500 uppercase tracking-wide">
-                            {formData.category || "Category"}
-                        </span>
-                        <h3 className="font-bold text-gray-900 text-sm mt-0.5">
-                            {formData.name || "Product Name"}
-                        </h3>
-                        <p className="text-[11px] text-gray-500 mt-1 line-clamp-2">
-                            {formData.description || "Product description..."}
-                        </p>
-                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
-                            <span className="text-base font-bold text-green-600">
-                                ₹{formData.price || "0"}
-                            </span>
-                            <span className="text-[10px] text-green-600">In stock</span>
+                        <div className={`absolute top-2 right-2 w-5 h-5 rounded-sm border-2 ${formData.foodType === "vegetarian" ? "border-green-500 bg-green-500" : "border-red-500 bg-red-500"} flex items-center justify-center`}>
+                            <div className="w-2 h-2 rounded-full bg-white" />
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Right Side: Form Fields */}
-            <div className="flex-1 space-y-3">
+            <div className="flex-1 space-y-4">
                 {/* Product Name */}
                 <div>
-                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                        Product Name <span className="text-red-500">*</span>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Product Name <span className="text-destructive">*</span>
                     </label>
                     <Input
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         placeholder="e.g. Chicken Biryani"
-                        className="mt-1 h-9 rounded-lg border-gray-300"
+                        className="mt-1.5"
                     />
                 </div>
 
                 {/* Description */}
                 <div>
-                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                        Description <span className="text-red-500">*</span>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Description <span className="text-destructive">*</span>
                     </label>
                     <Textarea
                         value={formData.description}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         placeholder="Describe your product..."
-                        className="mt-1 min-h-[60px] rounded-lg border-gray-300 resize-none"
+                        className="mt-1.5 min-h-[80px] resize-none"
                     />
                 </div>
 
                 {/* Price & Category Row */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                            Price (₹) <span className="text-red-500">*</span>
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            Price (₹) <span className="text-destructive">*</span>
                         </label>
                         <Input
                             type="number"
                             value={formData.price}
                             onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                             placeholder="0"
-                            className="mt-1 h-9 rounded-lg border-gray-300"
+                            className="mt-1.5"
                         />
                     </div>
                     <div>
-                        <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                            Category <span className="text-red-500">*</span>
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            Category <span className="text-destructive">*</span>
                         </label>
                         <Select
                             value={formData.category}
                             onValueChange={(value) => setFormData({ ...formData, category: value })}
                         >
-                            <SelectTrigger className="mt-1 h-9 rounded-lg border-gray-300">
+                            <SelectTrigger className="mt-1.5">
                                 <SelectValue placeholder="Select" />
                             </SelectTrigger>
                             <SelectContent>
@@ -334,16 +317,16 @@ export const ProductManagement = () => {
 
                 {/* Food Type */}
                 <div>
-                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                        Food Type <span className="text-red-500">*</span>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Food Type <span className="text-destructive">*</span>
                     </label>
-                    <div className="flex gap-2 mt-1">
+                    <div className="flex gap-3 mt-1.5">
                         <button
                             type="button"
                             onClick={() => setFormData({ ...formData, foodType: "vegetarian" })}
-                            className={`flex-1 py-2 rounded-lg font-medium text-xs flex items-center justify-center gap-2 transition-all ${formData.foodType === "vegetarian"
-                                ? "bg-green-500 text-white shadow-md"
-                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            className={`flex-1 py-2.5 rounded-lg font-medium text-xs flex items-center justify-center gap-2 transition-all border ${formData.foodType === "vegetarian"
+                                ? "bg-green-500 border-green-600 text-white shadow-sm"
+                                : "bg-muted border-transparent text-muted-foreground hover:bg-muted/80"
                                 }`}
                         >
                             <div className={`w-2.5 h-2.5 rounded-full ${formData.foodType === "vegetarian" ? "bg-white" : "bg-green-500"}`} />
@@ -352,9 +335,9 @@ export const ProductManagement = () => {
                         <button
                             type="button"
                             onClick={() => setFormData({ ...formData, foodType: "non-vegetarian" })}
-                            className={`flex-1 py-2 rounded-lg font-medium text-xs flex items-center justify-center gap-2 transition-all ${formData.foodType === "non-vegetarian"
-                                ? "bg-red-500 text-white shadow-md"
-                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            className={`flex-1 py-2.5 rounded-lg font-medium text-xs flex items-center justify-center gap-2 transition-all border ${formData.foodType === "non-vegetarian"
+                                ? "bg-red-500 border-red-600 text-white shadow-sm"
+                                : "bg-muted border-transparent text-muted-foreground hover:bg-muted/80"
                                 }`}
                         >
                             <div className={`w-2.5 h-2.5 rounded-full ${formData.foodType === "non-vegetarian" ? "bg-white" : "bg-red-500"}`} />
@@ -364,21 +347,21 @@ export const ProductManagement = () => {
                 </div>
 
                 {/* Stock Settings */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-4">
                     <div>
-                        <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                            Stock <span className="text-red-500">*</span>
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            Stock <span className="text-destructive">*</span>
                         </label>
                         <Input
                             type="number"
                             value={formData.stock}
                             onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
                             placeholder="0"
-                            className="mt-1 h-9 rounded-lg border-gray-300"
+                            className="mt-1.5"
                         />
                     </div>
                     <div>
-                        <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                             Alert Threshold
                         </label>
                         <Input
@@ -386,11 +369,11 @@ export const ProductManagement = () => {
                             value={formData.alertThreshold}
                             onChange={(e) => setFormData({ ...formData, alertThreshold: e.target.value })}
                             placeholder="10"
-                            className="mt-1 h-9 rounded-lg border-gray-300"
+                            className="mt-1.5"
                         />
                     </div>
                     <div>
-                        <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                             Min Value
                         </label>
                         <Input
@@ -398,7 +381,7 @@ export const ProductManagement = () => {
                             value={formData.minValue}
                             onChange={(e) => setFormData({ ...formData, minValue: e.target.value })}
                             placeholder="0"
-                            className="mt-1 h-9 rounded-lg border-gray-300"
+                            className="mt-1.5"
                         />
                     </div>
                 </div>
@@ -407,141 +390,68 @@ export const ProductManagement = () => {
     )
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-8 p-8 max-w-[1600px] mx-auto">
             {/* Header */}
             <div>
-                <h1 className="text-3xl font-bold text-foreground">Product Management</h1>
+                <h1 className="text-3xl font-bold tracking-tight">Product Management</h1>
+                <p className="text-muted-foreground mt-2">Manage your product inventory, pricing, and details.</p>
             </div>
 
             {/* Filters and Add Button */}
-            <div className="flex items-center justify-between">
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger className="w-[120px] bg-yellow-100 border-2 border-yellow-200 rounded-md text-foreground">
-                        <SelectValue placeholder="All" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {categories.map((cat) => (
-                            <SelectItem key={cat} value={cat}>
-                                {cat === "All" ? "All" : cat.charAt(0) + cat.slice(1).toLowerCase()}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+            <div className="flex items-center justify-between gap-4 p-1 bg-muted/50 rounded-2xl border border-border">
+                <div className="flex items-center gap-2 p-1">
+                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                        <SelectTrigger className="w-[180px] bg-background border-border shadow-sm">
+                            <SelectValue placeholder="All Categories" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {categories.map((cat) => (
+                                <SelectItem key={cat} value={cat}>
+                                    {cat === "All" ? "All Categories" : cat.charAt(0) + cat.slice(1).toLowerCase()}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
 
-                <button
+                <Button
                     onClick={() => {
                         resetForm()
                         setIsAddDialogOpen(true)
                     }}
-                    className="px-6 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 bg-green-500 text-white hover:bg-green-600 transition-colors shadow-md hover:shadow-lg"
+                    className="shadow-sm"
                 >
-                    + Add Product
-                </button>
+                    + Add New Product
+                </Button>
             </div>
 
             {/* Products Section */}
-            <div className="bg-pink-100 border-2 border-pink-200 rounded-3xl p-6 shadow-lg">
-                <h2 className="text-lg font-semibold mb-4 text-foreground">All Products</h2>
+            <div className="bg-muted/30 border border-border/50 rounded-3xl p-8 min-h-[500px]">
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                        All Products
+                        <span className="px-2.5 py-0.5 bg-primary/10 text-primary text-xs rounded-full">
+                            {filteredProducts.length}
+                        </span>
+                    </h2>
+                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {filteredProducts.map((product) => (
-                        <div
+                        <ProductCard
                             key={product.id}
-                            className="group bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2"
-                        >
-                            {/* Product Image with Overlay */}
-                            <div className="relative h-44 overflow-hidden">
-                                {product.image ? (
-                                    <img
-                                        src={product.image}
-                                        alt={product.name}
-                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full bg-pink-50 flex items-center justify-center text-pink-300">
-                                        <span className="text-4xl">🍽️</span>
-                                    </div>
-                                )}
-
-                                {/* Dark overlay on hover */}
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300" />
-
-                                {/* Food Type Badge - Top Left */}
-                                <div className={`absolute top-3 left-3 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg ${product.foodType === "vegetarian"
-                                    ? "bg-green-500 text-white"
-                                    : "bg-red-500 text-white"
-                                    }`}>
-                                    {product.foodType === "vegetarian" ? "● VEG" : "● NON-VEG"}
-                                </div>
-
-                                {/* Price Badge - Bottom Right */}
-                                <div className="absolute bottom-3 right-3 px-4 py-2 bg-white rounded-full shadow-lg">
-                                    <span className="text-lg font-black text-green-600">₹{product.price}</span>
-                                </div>
-                            </div>
-
-                            {/* Product Info */}
-                            <div className="p-5 flex flex-col">
-                                {/* Category Pill */}
-                                <span className="self-start px-3 py-1 bg-pink-100 text-pink-600 text-xs font-semibold rounded-full">
-                                    {product.category}
-                                </span>
-
-                                {/* Name */}
-                                <h3 className="font-bold text-gray-800 text-lg mt-2 capitalize leading-tight">
-                                    {product.name}
-                                </h3>
-
-                                {/* Description */}
-                                <p className="text-sm text-gray-500 mt-1 line-clamp-2 leading-relaxed h-[40px]">
-                                    {product.description}
-                                </p>
-
-                                {/* Stock Indicator */}
-                                <div className="mt-3">
-                                    <div className="flex justify-between text-xs mb-1.5">
-                                        <span className="text-gray-500">Stock</span>
-                                        <span className={`font-bold ${product.stock > 50 ? "text-green-600" :
-                                            product.stock > 10 ? "text-yellow-600" : "text-red-500"
-                                            }`}>
-                                            {product.stock} units
-                                        </span>
-                                    </div>
-                                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                                        <div
-                                            className={`h-full rounded-full transition-all ${product.stock > 50 ? "bg-green-500" :
-                                                product.stock > 10 ? "bg-yellow-500" : "bg-red-500"
-                                                }`}
-                                            style={{ width: `${Math.min(product.stock, 100)}%` }}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Action Buttons */}
-                                <div className="flex gap-3 mt-5">
-                                    <button
-                                        onClick={() => openEditDialog(product)}
-                                        className="flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 bg-green-500 text-white hover:bg-green-600 transition-colors shadow-md hover:shadow-lg"
-                                    >
-                                        <Edit className="w-4 h-4" />
-                                        Edit
-                                    </button>
-                                    <button
-                                        onClick={() => handleRemoveProduct(product.id)}
-                                        className="flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 bg-white text-red-500 border-2 border-red-200 hover:bg-red-50 hover:border-red-400 transition-all"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                        Remove
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                            product={product}
+                            onEdit={openEditDialog}
+                            onRemove={handleRemoveProduct}
+                        />
                     ))}
                 </div>
 
                 {filteredProducts.length === 0 && (
-                    <div className="text-center py-12 text-muted-foreground">
-                        No products found in this category.
+                    <div className="h-64 flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed border-border rounded-xl">
+                        <div className="text-4xl mb-4">🍽️</div>
+                        <p className="font-medium">No products found</p>
+                        <p className="text-sm mt-1">Try changing the category filter or add a new product</p>
                     </div>
                 )}
             </div>
@@ -553,17 +463,14 @@ export const ProductManagement = () => {
                         <DialogTitle>Add New Product</DialogTitle>
                     </DialogHeader>
                     {formJSX}
-                    <DialogFooter className="gap-2">
+                    <DialogFooter className="gap-2 pt-4">
                         <Button
                             variant="outline"
                             onClick={() => setIsAddDialogOpen(false)}
                         >
                             Cancel
                         </Button>
-                        <Button
-                            onClick={handleAddProduct}
-                            className="bg-green-600 hover:bg-green-700"
-                        >
+                        <Button onClick={handleAddProduct}>
                             Add Product
                         </Button>
                     </DialogFooter>
@@ -577,7 +484,7 @@ export const ProductManagement = () => {
                         <DialogTitle>Edit Product</DialogTitle>
                     </DialogHeader>
                     {formJSX}
-                    <DialogFooter className="gap-2">
+                    <DialogFooter className="gap-2 pt-4">
                         <Button
                             variant="outline"
                             onClick={() => {
@@ -588,10 +495,7 @@ export const ProductManagement = () => {
                         >
                             Cancel
                         </Button>
-                        <Button
-                            onClick={handleEditProduct}
-                            className="bg-green-600 hover:bg-green-700"
-                        >
+                        <Button onClick={handleEditProduct}>
                             Save Changes
                         </Button>
                     </DialogFooter>
