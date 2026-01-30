@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
@@ -14,52 +14,34 @@ import { Switch } from "../components/ui/switch"
 import { DataTable } from "../components/ui/data-table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { Textarea } from "../components/ui/textarea"
-
-interface ScheduledNotification {
-    title: string
-    message: string
-    priority: string
-    scheduledAt: string
-    status: string
-}
-
-interface Coupon {
-    code: string
-    description: string
-    reward: string
-    minOrder: string
-    validUntil: string
-    usage: string
-}
-
-const mockNotifications: ScheduledNotification[] = [
-    { title: "scheduled", message: "testing", priority: "HIGH", scheduledAt: "12/4/2025, 6:12:00 PM", status: "Sent" },
-]
-
-const mockCoupons: Coupon[] = [
-    { code: "TEST100", description: "This is for testing", reward: "10%", minOrder: "₹200", validUntil: "1/11/2026", usage: "2/988" },
-    { code: "SAVE75", description: "75% offer", reward: "75%", minOrder: "₹100", validUntil: "12/28/2025", usage: "1/1000" },
-    { code: "HAPPY-HOURS", description: "25% Off on all orders above 100", reward: "25%", minOrder: "₹100", validUntil: "12/22/2025", usage: "3/200" },
-    { code: "HAPPY50", description: "Order and get 50% off", reward: "50%", minOrder: "₹10", validUntil: "12/15/2025", usage: "1/200" },
-]
+import { Loader2 } from "lucide-react"
+import { useOutlet } from "../context/OutletContext"
+import { notificationService } from "../services"
+import type { NotificationSchedule, Coupon } from "../types/api"
 
 export const NotificationsManagement = () => {
+    const { outletId } = useOutlet()
+
     const [showCreateNotification, setShowCreateNotification] = useState(false)
     const [showCreateCoupon, setShowCreateCoupon] = useState(false)
+
+    const [notifications, setNotifications] = useState<NotificationSchedule[]>([])
+    const [coupons, setCoupons] = useState<Coupon[]>([])
+    const [loading, setLoading] = useState(true)
 
     // Notification form states
     const [notifTitle, setNotifTitle] = useState("")
     const [notifPriority, setNotifPriority] = useState("")
     const [notifMessage, setNotifMessage] = useState("")
-    const [notifScheduleDate, setNotifScheduleDate] = useState("dd-mm-yyyy")
-    const [notifScheduleTime, setNotifScheduleTime] = useState("--:-- --")
+    const [notifScheduleDate, setNotifScheduleDate] = useState("")
+    const [notifScheduleTime, setNotifScheduleTime] = useState("")
 
-    // Promotion form states
+    // Promotion form states (similar structure)
     const [promoTitle, setPromoTitle] = useState("")
     const [promoPriority, setPromoPriority] = useState("")
     const [promoDescription, setPromoDescription] = useState("")
-    const [promoScheduleDate, setPromoScheduleDate] = useState("dd-mm-yyyy")
-    const [promoScheduleTime, setPromoScheduleTime] = useState("--:-- --")
+    const [promoScheduleDate, setPromoScheduleDate] = useState("")
+    const [promoScheduleTime, setPromoScheduleTime] = useState("")
 
     // Coupon form states
     const [couponCode, setCouponCode] = useState("")
@@ -67,12 +49,136 @@ export const NotificationsManagement = () => {
     const [couponDescription, setCouponDescription] = useState("")
     const [minOrderValue, setMinOrderValue] = useState("")
     const [usageLimit, setUsageLimit] = useState("")
-    const [validFrom, setValidFrom] = useState("dd-mm-yyyy --:-- --")
-    const [validUntil, setValidUntil] = useState("dd-mm-yyyy --:-- --")
+    const [validFrom, setValidFrom] = useState("")
+    const [validUntil, setValidUntil] = useState("")
     const [autoSendNotif, setAutoSendNotif] = useState(false)
 
+    useEffect(() => {
+        if (outletId) {
+            fetchData()
+        }
+    }, [outletId])
+
+    const fetchData = async () => {
+        if (!outletId) return
+        try {
+            setLoading(true)
+            const [notifRes, couponRes] = await Promise.all([
+                notificationService.getScheduledNotifications(outletId),
+                notificationService.getCoupons(outletId)
+            ])
+
+            if (notifRes.success && notifRes.data) {
+                setNotifications(Array.isArray(notifRes.data) ? notifRes.data : [])
+            }
+            if (couponRes.success && couponRes.data) {
+                setCoupons(Array.isArray(couponRes.data) ? couponRes.data : [])
+            }
+        } catch (error) {
+            console.error("Error fetching data:", error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleScheduleNotification = async () => {
+        if (!notifTitle || !notifMessage || !outletId) {
+            alert("Please fill in required fields")
+            return
+        }
+
+        try {
+            const scheduledFor = notifScheduleDate && notifScheduleTime
+                ? `${notifScheduleDate} ${notifScheduleTime}`
+                : new Date().toISOString()
+
+            const response = await notificationService.scheduleNotification({
+                title: notifTitle,
+                message: notifMessage,
+                targetAudience: 'ALL',
+                scheduledFor,
+                outletId: typeof outletId === 'string' ? parseInt(outletId) : outletId
+            })
+
+            if (response.success) {
+                alert("Notification scheduled successfully")
+                setShowCreateNotification(false)
+                fetchData()
+                // Reset form
+                setNotifTitle("")
+                setNotifMessage("")
+                setNotifPriority("")
+                setNotifScheduleDate("")
+                setNotifScheduleTime("")
+            }
+        } catch (error) {
+            console.error("Error scheduling notification:", error)
+            alert("Failed to schedule notification")
+        }
+    }
+
+    const handleCreateCoupon = async () => {
+        if (!couponCode || !rewardValue || !validFrom || !validUntil || !usageLimit || !outletId) {
+            alert("Please fill in all required fields")
+            return
+        }
+
+        try {
+            const response = await notificationService.createCoupon({
+                code: couponCode,
+                discountType: 'PERCENTAGE',
+                discountValue: parseFloat(rewardValue),
+                minOrderAmount: minOrderValue ? parseFloat(minOrderValue) : undefined,
+                validFrom,
+                validUntil,
+                usageLimit: parseInt(usageLimit),
+                outletId: typeof outletId === 'string' ? parseInt(outletId) : outletId
+            })
+
+            if (response.success) {
+                alert("Coupon created successfully")
+                setShowCreateCoupon(false)
+                fetchData()
+                // Reset form
+                setCouponCode("")
+                setRewardValue("")
+                setCouponDescription("")
+                setMinOrderValue("")
+                setUsageLimit("")
+                setValidFrom("")
+                setValidUntil("")
+                setAutoSendNotif(false)
+            }
+        } catch (error) {
+            console.error("Error creating coupon:", error)
+            alert("Failed to create coupon")
+        }
+    }
+
+    const handleDeleteNotification = async (id: number) => {
+        try {
+            const response = await notificationService.cancelNotification(id)
+            if (response.success) {
+                fetchData()
+            }
+        } catch (error) {
+            console.error("Error deleting notification:", error)
+        }
+    }
+
+    const handleDeleteCoupon = async (id: number) => {
+        try {
+            const response = await notificationService.deleteCoupon(id)
+            if (response.success) {
+                fetchData()
+            }
+        } catch (error) {
+            console.error("Error deleting coupon:", error)
+        }
+    }
+
     // Notification Columns
-    const notificationColumns: ColumnDef<ScheduledNotification>[] = [
+    const notificationColumns: ColumnDef<NotificationSchedule>[] = [
         {
             accessorKey: "title",
             header: "TITLE",
@@ -83,34 +189,50 @@ export const NotificationsManagement = () => {
         {
             accessorKey: "message",
             header: "MESSAGE",
+            cell: ({ row }) => (
+                <div className="max-w-[200px] truncate" title={row.getValue("message")}>
+                    {row.getValue("message")}
+                </div>
+            ),
         },
         {
-            accessorKey: "priority",
-            header: "PRIORITY",
+            accessorKey: "targetAudience",
+            header: "AUDIENCE",
             cell: ({ row }) => (
-                <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
-                    {row.getValue("priority")}
+                <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+                    {row.getValue("targetAudience")}
                 </Badge>
             ),
         },
         {
-            accessorKey: "scheduledAt",
+            accessorKey: "scheduledFor",
             header: "SCHEDULED AT",
+            cell: ({ row }) => new Date(row.getValue("scheduledFor")).toLocaleString()
         },
         {
             accessorKey: "status",
             header: "STATUS",
-            cell: ({ row }) => (
-                <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-                    {row.getValue("status")}
-                </Badge>
-            ),
+            cell: ({ row }) => {
+                const status = row.getValue("status") as string
+                const variant = status === "SENT" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                return (
+                    <Badge className={`${variant} hover:${variant}`}>
+                        {status}
+                    </Badge>
+                )
+            },
         },
         {
             id: "actions",
             header: "ACTIONS",
-            cell: () => (
-                <Button size="sm" variant="destructive" className="rounded-full">
+            cell: ({ row }) => (
+                <Button
+                    size="sm"
+                    variant="destructive"
+                    className="rounded-full"
+                    onClick={() => handleDeleteNotification(row.original.id)}
+                    disabled={row.original.status === 'SENT'}
+                >
                     Delete
                 </Button>
             ),
@@ -127,38 +249,59 @@ export const NotificationsManagement = () => {
             ),
         },
         {
-            accessorKey: "description",
-            header: "DESCRIPTION",
-        },
-        {
-            accessorKey: "reward",
+            accessorKey: "discountValue",
             header: "REWARD",
             cell: ({ row }) => (
-                <span className="font-semibold">{row.getValue("reward")}</span>
+                <span className="font-semibold">{row.getValue("discountValue")}%</span>
             ),
         },
         {
-            accessorKey: "minOrder",
+            accessorKey: "minOrderAmount",
             header: "MIN ORDER",
+            cell: ({ row }) => `₹${row.getValue("minOrderAmount") || 0}`
         },
         {
-            accessorKey: "validUntil",
+            accessorKey: "validTo",
             header: "VALID UNTIL",
+            cell: ({ row }) => new Date(row.getValue("validTo")).toLocaleDateString()
         },
         {
-            accessorKey: "usage",
+            accessorKey: "usedCount",
             header: "USAGE",
+            cell: ({ row }) => `${row.original.usedCount}/${row.original.usageLimit}`
+        },
+        {
+            accessorKey: "isActive",
+            header: "STATUS",
+            cell: ({ row }) => (
+                <Badge className={row.getValue("isActive") ? "bg-green-100 text-green-800 hover:bg-green-100" : "bg-red-100 text-red-800 hover:bg-red-100"}>
+                    {row.getValue("isActive") ? "Active" : "Inactive"}
+                </Badge>
+            ),
         },
         {
             id: "actions",
             header: "ACTIONS",
-            cell: () => (
-                <Button size="sm" variant="destructive" className="rounded-full">
+            cell: ({ row }) => (
+                <Button
+                    size="sm"
+                    variant="destructive"
+                    className="rounded-full"
+                    onClick={() => handleDeleteCoupon(row.original.id)}
+                >
                     Remove
                 </Button>
             ),
         },
     ]
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">
@@ -184,7 +327,7 @@ export const NotificationsManagement = () => {
                                 </div>
                                 <div>
                                     <h3 className="text-lg font-semibold mb-4">Scheduled Notification</h3>
-                                    <DataTable columns={notificationColumns} data={mockNotifications} />
+                                    <DataTable columns={notificationColumns} data={notifications} />
                                 </div>
                             </>
                         ) : (
@@ -208,7 +351,7 @@ export const NotificationsManagement = () => {
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium">Priority Type *</label>
+                                            <label className="text-sm font-medium">Priority Type</label>
                                             <Select value={notifPriority} onValueChange={setNotifPriority}>
                                                 <SelectTrigger className="rounded-xl">
                                                     <SelectValue placeholder="Select Priority" />
@@ -230,13 +373,9 @@ export const NotificationsManagement = () => {
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium">Image Upload</label>
-                                            <Input type="file" className="rounded-xl" />
-                                        </div>
-                                        <div className="space-y-2">
                                             <label className="text-sm font-medium">Schedule Date</label>
                                             <Input
-                                                type="text"
+                                                type="date"
                                                 value={notifScheduleDate}
                                                 onChange={(e) => setNotifScheduleDate(e.target.value)}
                                                 className="rounded-xl"
@@ -245,7 +384,7 @@ export const NotificationsManagement = () => {
                                         <div className="space-y-2">
                                             <label className="text-sm font-medium">Schedule Time</label>
                                             <Input
-                                                type="text"
+                                                type="time"
                                                 value={notifScheduleTime}
                                                 onChange={(e) => setNotifScheduleTime(e.target.value)}
                                                 className="rounded-xl"
@@ -253,78 +392,19 @@ export const NotificationsManagement = () => {
                                         </div>
                                     </div>
                                     <div className="flex justify-end gap-4 mt-6">
-                                        <Button variant="destructive" className="rounded-full">Cancel</Button>
-                                        <Button variant="outline" className="rounded-full">Send Now</Button>
-                                        <Button className="rounded-full bg-green-600 hover:bg-green-700">Schedule</Button>
+                                        <Button variant="destructive" onClick={() => setShowCreateNotification(false)} className="rounded-full">Cancel</Button>
+                                        <Button onClick={handleScheduleNotification} className="rounded-full bg-green-600 hover:bg-green-700">Schedule</Button>
                                     </div>
                                 </div>
                             </div>
                         )}
                     </TabsContent>
 
-                    {/* Promotion Tab */}
+                    {/* Promotion Tab - Similar to notification but simplified */}
                     <TabsContent value="promotion" className="space-y-6">
                         <div className="bg-card border-2 border-border rounded-3xl p-6">
                             <h3 className="text-lg font-semibold mb-6">Promotion Details</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Title</label>
-                                    <Input
-                                        placeholder="Enter title"
-                                        value={promoTitle}
-                                        onChange={(e) => setPromoTitle(e.target.value)}
-                                        className="rounded-xl"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Priority Type</label>
-                                    <Select value={promoPriority} onValueChange={setPromoPriority}>
-                                        <SelectTrigger className="rounded-xl">
-                                            <SelectValue placeholder="Select Type" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="high">High</SelectItem>
-                                            <SelectItem value="medium">Medium</SelectItem>
-                                            <SelectItem value="low">Low</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2 md:col-span-2">
-                                    <label className="text-sm font-medium">Description</label>
-                                    <Textarea
-                                        placeholder="Enter description"
-                                        value={promoDescription}
-                                        onChange={(e) => setPromoDescription(e.target.value)}
-                                        className="rounded-xl"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Image Upload</label>
-                                    <Input type="file" className="rounded-xl" />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Schedule Date</label>
-                                    <Input
-                                        type="text"
-                                        value={promoScheduleDate}
-                                        onChange={(e) => setPromoScheduleDate(e.target.value)}
-                                        className="rounded-xl"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Schedule Time</label>
-                                    <Input
-                                        type="text"
-                                        value={promoScheduleTime}
-                                        onChange={(e) => setPromoScheduleTime(e.target.value)}
-                                        className="rounded-xl"
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex justify-end gap-4 mt-6">
-                                <Button variant="destructive" className="rounded-full">Reset</Button>
-                                <Button className="rounded-full bg-green-600 hover:bg-green-700">Send Promotion</Button>
-                            </div>
+                            <p className="text-muted-foreground text-sm mb-4">Use the notifications tab to send promotional messages</p>
                         </div>
                     </TabsContent>
 
@@ -342,7 +422,7 @@ export const NotificationsManagement = () => {
                                 </div>
                                 <div>
                                     <h3 className="text-lg font-semibold mb-4">Active Coupons</h3>
-                                    <DataTable columns={couponColumns} data={mockCoupons} />
+                                    <DataTable columns={couponColumns} data={coupons} />
                                 </div>
                             </>
                         ) : (
@@ -367,6 +447,7 @@ export const NotificationsManagement = () => {
                                         <div className="space-y-2">
                                             <label className="text-sm font-medium">Reward Value % *</label>
                                             <Input
+                                                type="number"
                                                 placeholder="e.g., 20"
                                                 value={rewardValue}
                                                 onChange={(e) => setRewardValue(e.target.value)}
@@ -385,6 +466,7 @@ export const NotificationsManagement = () => {
                                         <div className="space-y-2">
                                             <label className="text-sm font-medium">Minimum Order Value ₹</label>
                                             <Input
+                                                type="number"
                                                 placeholder="e.g., 100"
                                                 value={minOrderValue}
                                                 onChange={(e) => setMinOrderValue(e.target.value)}
@@ -394,6 +476,7 @@ export const NotificationsManagement = () => {
                                         <div className="space-y-2">
                                             <label className="text-sm font-medium">Usage Limit *</label>
                                             <Input
+                                                type="number"
                                                 placeholder="e.g., 100"
                                                 value={usageLimit}
                                                 onChange={(e) => setUsageLimit(e.target.value)}
@@ -403,7 +486,7 @@ export const NotificationsManagement = () => {
                                         <div className="space-y-2">
                                             <label className="text-sm font-medium">Valid From *</label>
                                             <Input
-                                                type="text"
+                                                type="datetime-local"
                                                 value={validFrom}
                                                 onChange={(e) => setValidFrom(e.target.value)}
                                                 className="rounded-xl"
@@ -412,7 +495,7 @@ export const NotificationsManagement = () => {
                                         <div className="space-y-2">
                                             <label className="text-sm font-medium">Valid Until *</label>
                                             <Input
-                                                type="text"
+                                                type="datetime-local"
                                                 value={validUntil}
                                                 onChange={(e) => setValidUntil(e.target.value)}
                                                 className="rounded-xl"
@@ -429,8 +512,8 @@ export const NotificationsManagement = () => {
                                         </div>
                                     </div>
                                     <div className="flex justify-end gap-4 mt-6">
-                                        <Button variant="destructive" className="rounded-full">Cancel</Button>
-                                        <Button className="rounded-full bg-green-600 hover:bg-green-700">Create Coupon</Button>
+                                        <Button variant="destructive" onClick={() => setShowCreateCoupon(false)} className="rounded-full">Cancel</Button>
+                                        <Button onClick={handleCreateCoupon} className="rounded-full bg-green-600 hover:bg-green-700">Create Coupon</Button>
                                     </div>
                                 </div>
                             </div>

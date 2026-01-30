@@ -1,9 +1,11 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
-import { Search } from "lucide-react"
+import { Search, Loader2 } from "lucide-react"
 import { DataTable } from "../components/ui/data-table"
+import { customerService } from "../services"
+import { useOutlet } from "../context/OutletContext"
 
 interface Customer {
     customerId: number
@@ -15,23 +17,34 @@ interface Customer {
     totalPurchase: string
 }
 
-const mockCustomers: Customer[] = [
-    { customerId: 1, walletId: 1, name: "Customer1", year: 2, phoneNumber: "8667410952", walletBalance: "₹1035.00", totalPurchase: "₹5119.50" },
-    { customerId: 3, walletId: 4, name: "InAu", year: 3, phoneNumber: "9629772202", walletBalance: "₹0.00", totalPurchase: "₹0.00" },
-    { customerId: 5, walletId: 6, name: "Mutesh Vijayan", year: 4, phoneNumber: "9894111808", walletBalance: "₹0.00", totalPurchase: "₹0.00" },
-    { customerId: 6, walletId: 11, name: "Sharon Adhitya", year: 4, phoneNumber: "9994098046", walletBalance: "₹10.00", totalPurchase: "₹210.00" },
-    { customerId: 7, walletId: 12, name: "Siveesubhan R", year: 4, phoneNumber: "7200018927", walletBalance: "₹425.00", totalPurchase: "₹165.00" },
-    { customerId: 8, walletId: 14, name: "Abshayaa", year: 3, phoneNumber: "6381918926", walletBalance: "₹0.00", totalPurchase: "₹0.00" },
-    { customerId: 9, walletId: 15, name: "Rakshita", year: 4, phoneNumber: "8807785350", walletBalance: "₹0.00", totalPurchase: "₹0.00" },
-    { customerId: 4, walletId: 5, name: "Latha Ilanchelan", year: 1, phoneNumber: "8300114406", walletBalance: "₹67.64", totalPurchase: "₹604.19" },
-    { customerId: 10, walletId: 17, name: "GOPIKUL J", year: 4, phoneNumber: "9360987266", walletBalance: "₹0.00", totalPurchase: "₹0.00" },
-    { customerId: 11, walletId: 18, name: "Arjun M", year: 4, phoneNumber: "9361234567", walletBalance: "₹0.00", totalPurchase: "₹0.00" },
-    { customerId: 12, walletId: 19, name: "Test User", year: 2, phoneNumber: "9876543210", walletBalance: "₹500.00", totalPurchase: "₹1500.00" },
-]
+
 
 export const CustomerManagement = () => {
     const [searchQuery, setSearchQuery] = useState("")
-    const [customers] = useState(mockCustomers)
+    const [customers, setCustomers] = useState<Customer[]>([])
+    const [loading, setLoading] = useState(true)
+
+    const { outletId } = useOutlet()
+
+    useEffect(() => {
+        if (outletId) {
+            fetchCustomers()
+        }
+    }, [outletId])
+
+    const fetchCustomers = async () => {
+        if (!outletId) return
+
+        try {
+            setLoading(true)
+            const response = await customerService.getCustomers(outletId)
+            setCustomers(response.data || [])
+        } catch (error) {
+            console.error('Error fetching customers:', error)
+        } finally {
+            setLoading(false)
+        }
+    }
 
     // Customer Columns
     const customerColumns: ColumnDef<Customer>[] = [

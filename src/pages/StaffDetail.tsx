@@ -1,71 +1,101 @@
+import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { Button } from "../components/ui/button"
 import { Avatar, AvatarFallback } from "../components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { Switch } from "../components/ui/switch"
-import { ArrowLeft, User, Mail, Phone, Briefcase } from "lucide-react"
-import { useState } from "react"
-
-interface StaffDetail {
-    id: string
-    name: string
-    email: string
-    phone: string
-    position: string
-    permissions: {
-        billing: boolean
-        productInsight: boolean
-        inventory: boolean
-        reports: boolean
-    }
-}
-
-const mockStaffData: Record<string, StaffDetail> = {
-    "1": {
-        id: "1",
-        name: "Tharini",
-        email: "tharinimohan@gmail.com",
-        phone: "+91(33)914400",
-        position: "Manager",
-        permissions: { billing: true, productInsight: true, inventory: true, reports: true }
-    },
-    "2": {
-        id: "2",
-        name: "Staff",
-        email: "staff@gmail.com",
-        phone: "9899234450",
-        position: "Trainee",
-        permissions: { billing: false, productInsight: true, inventory: true, reports: false }
-    },
-    "3": {
-        id: "3",
-        name: "John Doe",
-        email: "john.doe@gmail.com",
-        phone: "+91(98)765432",
-        position: "Chef",
-        permissions: { billing: false, productInsight: false, inventory: true, reports: false }
-    },
-    "4": {
-        id: "4",
-        name: "Jane Smith",
-        email: "jane.smith@gmail.com",
-        phone: "+91(87)654321",
-        position: "Supervisor",
-        permissions: { billing: true, productInsight: true, inventory: true, reports: true }
-    },
-}
+import { ArrowLeft, User, Mail, Phone, Briefcase, Loader2 } from "lucide-react"
+import { staffService } from "../services"
+import type { Staff } from "../types/api"
 
 export const StaffDetail = () => {
     const { staffId } = useParams<{ staffId: string }>()
     const navigate = useNavigate()
-    const staff = staffId ? mockStaffData[staffId] : null
 
-    const [permissions, setPermissions] = useState(staff?.permissions || {
+    const [staff, setStaff] = useState<Staff | null>(null)
+    const [loading, setLoading] = useState(true)
+    const [permissions, setPermissions] = useState({
         billing: false,
         productInsight: false,
         inventory: false,
         reports: false,
     })
+
+    useEffect(() => {
+        if (staffId) {
+            fetchStaffDetail()
+        }
+    }, [staffId])
+
+    const fetchStaffDetail = async () => {
+        if (!staffId) return
+        try {
+            setLoading(true)
+            const response = await staffService.getStaffById(parseInt(staffId))
+            if (response.success && response.data) {
+                setStaff(response.data)
+                // Note: Staff permissions are managed separately in the permissions tab
+                // Initialize with defaults for now
+            }
+        } catch (error) {
+            console.error("Error fetching staff detail:", error)
+            alert("Failed to load staff details")
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handlePermissionChange = (permission: keyof typeof permissions) => {
+        setPermissions(prev => ({
+            ...prev,
+            [permission]: !prev[permission]
+        }))
+    }
+
+    const handleUpdatePermissions = async () => {
+        if (!staffId) return
+        try {
+            // Convert permissions object to API format
+            const permissionsArray = Object.entries(permissions).map(([type, isGranted]) => ({
+                type,
+                isGranted
+            }))
+
+            const response = await staffService.updatePermissions({
+                staffId: parseInt(staffId),
+                permissions: permissionsArray
+            })
+            if (response.success) {
+                alert("Permissions updated successfully")
+                fetchStaffDetail()
+            }
+        } catch (error) {
+            console.error("Error updating permissions:", error)
+            alert("Failed to update permissions")
+        }
+    }
+
+    const handleRemoveStaff = async () => {
+        if (!staffId || !confirm("Are you sure you want to remove this staff member?")) return
+        try {
+            const response = await staffService.deleteStaff(parseInt(staffId))
+            if (response.success) {
+                alert("Staff member removed successfully")
+                navigate("/staff-management")
+            }
+        } catch (error) {
+            console.error("Error removing staff:", error)
+            alert("Failed to remove staff member")
+        }
+    }
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
 
     if (!staff) {
         return (
@@ -77,13 +107,6 @@ export const StaffDetail = () => {
                 </Button>
             </div>
         )
-    }
-
-    const handlePermissionChange = (permission: keyof typeof permissions) => {
-        setPermissions(prev => ({
-            ...prev,
-            [permission]: !prev[permission]
-        }))
     }
 
     return (
@@ -134,9 +157,9 @@ export const StaffDetail = () => {
                                 <div className="bg-card border rounded-2xl p-4">
                                     <div className="flex items-center gap-2 mb-2">
                                         <Briefcase size={18} className="text-muted-foreground" />
-                                        <span className="text-sm text-muted-foreground">Position</span>
+                                        <span className="text-sm text-muted-foreground">Designation</span>
                                     </div>
-                                    <p className="font-medium">{staff.position}</p>
+                                    <p className="font-medium">{staff.designation || 'N/A'}</p>
                                 </div>
 
                                 {/* Email */}
@@ -154,14 +177,19 @@ export const StaffDetail = () => {
                                         <Phone size={18} className="text-muted-foreground" />
                                         <span className="text-sm text-muted-foreground">Phone</span>
                                     </div>
-                                    <p className="font-medium">{staff.phone}</p>
+                                    <p className="font-medium">{staff.phone || 'N/A'}</p>
                                 </div>
                             </div>
 
                             {/* Action Buttons */}
                             <div className="flex gap-4 mt-6">
-                                <Button className="rounded-full">Update Details</Button>
-                                <Button variant="destructive" className="rounded-full">Remove Staff</Button>
+                                <Button
+                                    variant="destructive"
+                                    className="rounded-full"
+                                    onClick={handleRemoveStaff}
+                                >
+                                    Remove Staff
+                                </Button>
                             </div>
                         </div>
                     </TabsContent>
@@ -208,7 +236,12 @@ export const StaffDetail = () => {
 
                             {/* Update Button */}
                             <div className="flex justify-center mt-6">
-                                <Button className="rounded-full">Update Permissions</Button>
+                                <Button
+                                    className="rounded-full"
+                                    onClick={handleUpdatePermissions}
+                                >
+                                    Update Permissions
+                                </Button>
                             </div>
                         </div>
                     </TabsContent>

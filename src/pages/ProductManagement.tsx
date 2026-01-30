@@ -1,4 +1,4 @@
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
 import { Textarea } from "../components/ui/textarea"
@@ -16,90 +16,29 @@ import {
     DialogTitle,
     DialogFooter,
 } from "../components/ui/dialog"
-import { Edit, Trash2, Upload } from "lucide-react"
+import { Edit, Trash2, Upload, Loader2 } from "lucide-react"
 import { ProductCard } from "../components/ProductCard"
+import { useOutlet } from "../context/OutletContext"
+import { productService } from "../services/productService"
+import { Product } from "../types/api"
+import toast from "react-hot-toast"
 
-interface Product {
-    id: string
-    name: string
-    description: string
-    price: number
-    category: string
-    foodType: "vegetarian" | "non-vegetarian"
-    image: string | null
-    alertThreshold: number
-    minValue: number
-    stock: number
-}
-
-const mockProducts: Product[] = [
-    {
-        id: "1",
-        name: "briyani",
-        description: "Briyani from store",
-        price: 110,
-        category: "MEALS",
-        foodType: "non-vegetarian",
-        image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=400&h=300&fit=crop",
-        alertThreshold: 10,
-        minValue: 0,
-        stock: 33,
-    },
-    {
-        id: "2",
-        name: "butter milk",
-        description: "the tangy liquid that remains after butter is churned from cream.",
-        price: 10,
-        category: "BEVERAGES",
-        foodType: "vegetarian",
-        image: "https://images.unsplash.com/photo-1571115177098-24ec42ed204d?w=400&h=300&fit=crop",
-        alertThreshold: 10,
-        minValue: 0,
-        stock: 990,
-    },
-    {
-        id: "3",
-        name: "coffee",
-        description: "Coffee kudinga themba irunga",
-        price: 12,
-        category: "MEALS",
-        foodType: "vegetarian",
-        image: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=300&fit=crop",
-        alertThreshold: 10,
-        minValue: 0,
-        stock: 994,
-    },
-    {
-        id: "4",
-        name: "idily",
-        description: "Idly the great",
-        price: 20,
-        category: "MEALS",
-        foodType: "vegetarian",
-        image: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=400&h=300&fit=crop",
-        alertThreshold: 10,
-        minValue: 0,
-        stock: 19,
-    },
-    {
-        id: "5",
-        name: "lemon juice",
-        description: "Lemon and spoon",
-        price: 20,
-        category: "SPECIALFOODS",
-        foodType: "vegetarian",
-        image: "https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=400&h=300&fit=crop",
-        alertThreshold: 10,
-        minValue: 0,
-        stock: 1,
-    },
-]
-
-const categories = ["All", "MEALS", "BEVERAGES", "SPECIALFOODS"]
+// Extended Product interface to include UI-specific fields if needed, 
+// or just mapping API Product to UI.
+// The API Product has: id, name, description, price, category, imageUrl, isAvailable, outletId.
+// The UI 'ProductCard' likely expects specific props. I'll need to check ProductCard or adapt here.
+// For now I'll assume I can pass the API Product object or map it.
 
 export const ProductManagement = () => {
-    const [products, setProducts] = useState<Product[]>(mockProducts)
+    const { outletId } = useOutlet()
+
+    const [products, setProducts] = useState<Product[]>([])
+    const [loading, setLoading] = useState(true)
+
+    // Category filter
     const [categoryFilter, setCategoryFilter] = useState("All")
+    const categories = ["All", "MEALS", "BEVERAGES", "SPECIALFOODS"] // These could also come from API unique valus
+
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
@@ -111,12 +50,35 @@ export const ProductManagement = () => {
         description: "",
         price: "",
         category: "",
-        foodType: "vegetarian" as "vegetarian" | "non-vegetarian",
-        image: null as string | null,
-        alertThreshold: "10",
-        minValue: "0",
-        stock: "0",
+        // foodType: "vegetarian", // Not in API currently
+        imageUrl: null as string | null,
     })
+
+    useEffect(() => {
+        if (outletId) {
+            fetchProducts()
+        }
+    }, [outletId])
+
+    const fetchProducts = async () => {
+        if (!outletId) return
+        try {
+            setLoading(true)
+            const response = await productService.getProducts(parseInt(outletId))
+            if (response.success && response.data) {
+                setProducts(response.data)
+            }
+        } catch (error) {
+            console.error("Failed to fetch products", error)
+            toast({
+                title: "Error",
+                description: "Failed to load products",
+                variant: "destructive"
+            })
+        } finally {
+            setLoading(false)
+        }
+    }
 
     const filteredProducts = products.filter((product) => {
         if (categoryFilter === "All") return true
@@ -129,81 +91,116 @@ export const ProductManagement = () => {
             description: "",
             price: "",
             category: "",
-            foodType: "vegetarian",
-            image: null,
-            alertThreshold: "10",
-            minValue: "0",
-            stock: "0",
+            imageUrl: null,
         })
     }
 
-    const handleAddProduct = () => {
-        if (!formData.name || !formData.description || !formData.price || !formData.category) {
+    const handleAddProduct = async () => {
+        if (!formData.name || !formData.price || !formData.category || !outletId) {
+            toast({
+                title: "Validation Error",
+                description: "Please fill in all required fields",
+                variant: "destructive"
+            })
             return
         }
 
-        const newProduct: Product = {
-            id: Date.now().toString(),
-            name: formData.name,
-            description: formData.description,
-            price: parseFloat(formData.price),
-            category: formData.category,
-            foodType: formData.foodType,
-            image: formData.image,
-            alertThreshold: parseInt(formData.alertThreshold) || 10,
-            minValue: parseInt(formData.minValue) || 0,
-            stock: parseInt(formData.stock) || 0,
-        }
+        try {
+            const response = await productService.addProduct({
+                name: formData.name,
+                description: formData.description,
+                price: parseFloat(formData.price),
+                category: formData.category,
+                imageUrl: formData.imageUrl || "",
+                outletId: parseInt(outletId)
+            })
 
-        setProducts([...products, newProduct])
-        setIsAddDialogOpen(false)
-        resetForm()
+            if (response.success && response.data) {
+                setProducts([...products, response.data])
+                setIsAddDialogOpen(false)
+                resetForm()
+                toast({
+                    title: "Success",
+                    description: "Product added successfully"
+                })
+            }
+        } catch (error) {
+            console.error("Error adding product:", error)
+            toast({
+                title: "Error",
+                description: "Failed to add product",
+                variant: "destructive"
+            })
+        }
     }
 
-    const handleEditProduct = () => {
-        if (!editingProduct || !formData.name || !formData.description || !formData.price || !formData.category) {
+    const handleEditProduct = async () => {
+        if (!editingProduct || !formData.name || !formData.price || !formData.category || !outletId) {
             return
         }
 
-        const updatedProducts = products.map((p) =>
-            p.id === editingProduct.id
-                ? {
-                    ...p,
-                    name: formData.name,
-                    description: formData.description,
-                    price: parseFloat(formData.price),
-                    category: formData.category,
-                    foodType: formData.foodType,
-                    image: formData.image,
-                    alertThreshold: parseInt(formData.alertThreshold) || 10,
-                    minValue: parseInt(formData.minValue) || 0,
-                    stock: parseInt(formData.stock) || 0,
-                }
-                : p
-        )
+        try {
+            const response = await productService.updateProduct(editingProduct.id, {
+                name: formData.name,
+                description: formData.description,
+                price: parseFloat(formData.price),
+                category: formData.category,
+                imageUrl: formData.imageUrl || "",
+            })
 
-        setProducts(updatedProducts)
-        setIsEditDialogOpen(false)
-        setEditingProduct(null)
-        resetForm()
+            if (response.success && response.data) {
+                const updatedProducts = products.map((p) =>
+                    p.id === editingProduct.id ? response.data! : p
+                )
+                setProducts(updatedProducts)
+                setIsEditDialogOpen(false)
+                setEditingProduct(null)
+                resetForm()
+                toast({
+                    title: "Success",
+                    description: "Product updated successfully"
+                })
+            }
+        } catch (error) {
+            console.error("Error updating product:", error)
+            toast({
+                title: "Error",
+                description: "Failed to update product",
+                variant: "destructive"
+            })
+        }
     }
 
-    const handleRemoveProduct = (productId: string) => {
-        setProducts(products.filter((p) => p.id !== productId))
+    const handleRemoveProduct = async (productId: string | number) => {
+        // Confirm delete?
+        try {
+            const id = typeof productId === 'string' ? parseInt(productId) : productId
+            const response = await productService.deleteProduct(id)
+            if (response.success) {
+                setProducts(products.filter((p) => p.id !== id))
+                toast({
+                    title: "Success",
+                    description: "Product deleted successfully"
+                })
+            }
+        } catch (error) {
+            console.error("Error deleting product:", error)
+            toast({
+                title: "Error",
+                description: "Failed to delete product",
+                variant: "destructive"
+            })
+        }
     }
 
     const openEditDialog = (product: Product) => {
         setEditingProduct(product)
         setFormData({
             name: product.name,
-            description: product.description,
+            description: product.description || "",
             price: product.price.toString(),
-            category: product.category,
-            foodType: product.foodType,
-            image: product.image,
-            alertThreshold: product.alertThreshold.toString(),
-            minValue: product.minValue.toString(),
-            stock: product.stock.toString(),
+            category: product.category || "",
+            imageUrl: product.imageUrl || null,
         })
         setIsEditDialogOpen(true)
     }
@@ -213,7 +210,7 @@ export const ProductManagement = () => {
         if (file) {
             const reader = new FileReader()
             reader.onloadend = () => {
-                setFormData({ ...formData, image: reader.result as string })
+                setFormData({ ...formData, imageUrl: reader.result as string })
             }
             reader.readAsDataURL(file)
         }
@@ -237,18 +234,14 @@ export const ProductManagement = () => {
                             onChange={handleImageUpload}
                             className="hidden"
                         />
-                        {formData.image ? (
-                            <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
+                        {formData.imageUrl ? (
+                            <img src={formData.imageUrl} alt="Preview" className="w-full h-full object-cover" />
                         ) : (
                             <div className="text-center group-hover:scale-110 transition-transform">
                                 <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-1" />
                                 <p className="text-xs text-muted-foreground">Click to upload</p>
                             </div>
                         )}
-                        {/* Food Type Badge */}
-                        <div className={`absolute top-2 right-2 w-5 h-5 rounded-sm border-2 ${formData.foodType === "vegetarian" ? "border-green-500 bg-green-500" : "border-red-500 bg-red-500"} flex items-center justify-center`}>
-                            <div className="w-2 h-2 rounded-full bg-white" />
-                        </div>
                     </div>
                 </div>
             </div>
@@ -271,7 +264,7 @@ export const ProductManagement = () => {
                 {/* Description */}
                 <div>
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Description <span className="text-destructive">*</span>
+                        Description
                     </label>
                     <Textarea
                         value={formData.description}
@@ -314,80 +307,17 @@ export const ProductManagement = () => {
                         </Select>
                     </div>
                 </div>
-
-                {/* Food Type */}
-                <div>
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Food Type <span className="text-destructive">*</span>
-                    </label>
-                    <div className="flex gap-3 mt-1.5">
-                        <button
-                            type="button"
-                            onClick={() => setFormData({ ...formData, foodType: "vegetarian" })}
-                            className={`flex-1 py-2.5 rounded-lg font-medium text-xs flex items-center justify-center gap-2 transition-all border ${formData.foodType === "vegetarian"
-                                ? "bg-green-500 border-green-600 text-white shadow-sm"
-                                : "bg-muted border-transparent text-muted-foreground hover:bg-muted/80"
-                                }`}
-                        >
-                            <div className={`w-2.5 h-2.5 rounded-full ${formData.foodType === "vegetarian" ? "bg-white" : "bg-green-500"}`} />
-                            Vegetarian
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setFormData({ ...formData, foodType: "non-vegetarian" })}
-                            className={`flex-1 py-2.5 rounded-lg font-medium text-xs flex items-center justify-center gap-2 transition-all border ${formData.foodType === "non-vegetarian"
-                                ? "bg-red-500 border-red-600 text-white shadow-sm"
-                                : "bg-muted border-transparent text-muted-foreground hover:bg-muted/80"
-                                }`}
-                        >
-                            <div className={`w-2.5 h-2.5 rounded-full ${formData.foodType === "non-vegetarian" ? "bg-white" : "bg-red-500"}`} />
-                            Non-Veg
-                        </button>
-                    </div>
-                </div>
-
-                {/* Stock Settings */}
-                <div className="grid grid-cols-3 gap-4">
-                    <div>
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                            Stock <span className="text-destructive">*</span>
-                        </label>
-                        <Input
-                            type="number"
-                            value={formData.stock}
-                            onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                            placeholder="0"
-                            className="mt-1.5"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                            Alert Threshold
-                        </label>
-                        <Input
-                            type="number"
-                            value={formData.alertThreshold}
-                            onChange={(e) => setFormData({ ...formData, alertThreshold: e.target.value })}
-                            placeholder="10"
-                            className="mt-1.5"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                            Min Value
-                        </label>
-                        <Input
-                            type="number"
-                            value={formData.minValue}
-                            onChange={(e) => setFormData({ ...formData, minValue: e.target.value })}
-                            placeholder="0"
-                            className="mt-1.5"
-                        />
-                    </div>
-                </div>
             </div>
         </div>
     )
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-8 p-8 max-w-[1600px] mx-auto">
@@ -440,9 +370,17 @@ export const ProductManagement = () => {
                     {filteredProducts.map((product) => (
                         <ProductCard
                             key={product.id}
-                            product={product}
-                            onEdit={openEditDialog}
-                            onRemove={handleRemoveProduct}
+                            product={{
+                                ...product,
+                                id: product.id.toString(), // Adapter needed here if ProductCard expects string id
+                                foodType: "vegetarian", // Default or omitted
+                                stock: 0, // Default
+                                alertThreshold: 0, // Default
+                                minValue: 0, // Default
+                                image: product.imageUrl || null
+                            }}
+                            onEdit={() => openEditDialog(product)}
+                            onRemove={() => handleRemoveProduct(product.id)}
                         />
                     ))}
                 </div>

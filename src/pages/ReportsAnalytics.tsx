@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Input } from "../components/ui/input"
 import {
     Select,
@@ -7,53 +7,26 @@ import {
     SelectTrigger,
     SelectValue,
 } from "../components/ui/select"
-import { Download, RefreshCw, Search } from "lucide-react"
+import { Download, RefreshCw, Search, Loader2 } from "lucide-react"
+import { useOutlet } from "../context/OutletContext"
+import { reportService } from "../services"
+import type { AnalyticsParams } from "../types/api"
 
 type ReportTab = "sales" | "revenue" | "profit" | "customers"
 
-// Mock data for Sales Report
-const mockSalesData = [
-    { id: 1, product: "Briyani", category: "Meals", price: 110, orders: 156, revenue: 17160 },
-    { id: 2, product: "Butter Milk", category: "Beverages", price: 10, orders: 234, revenue: 2340 },
-    { id: 3, product: "Coffee", category: "Beverages", price: 12, orders: 189, revenue: 2268 },
-    { id: 4, product: "Idly", category: "Meals", price: 20, orders: 312, revenue: 6240 },
-    { id: 5, product: "Lemon Juice", category: "SpecialFoods", price: 20, orders: 98, revenue: 1960 },
-    { id: 6, product: "Dosa", category: "Meals", price: 40, orders: 245, revenue: 9800 },
-    { id: 7, product: "Puri", category: "Meals", price: 35, orders: 178, revenue: 6230 },
-    { id: 8, product: "Tea", category: "Beverages", price: 8, orders: 423, revenue: 3384 },
-]
-
-// Mock data for Revenue Analytics
-const mockRevenueData = [
-    { id: 1, source: "Dine-in", category: "Direct", amount: 48000, percentage: 58, transactions: 312 },
-    { id: 2, source: "Takeaway", category: "Direct", amount: 22000, percentage: 27, transactions: 189 },
-    { id: 3, source: "Delivery", category: "Partner", amount: 12000, percentage: 15, transactions: 98 },
-    { id: 4, source: "Zomato", category: "Partner", amount: 8500, percentage: 10, transactions: 67 },
-    { id: 5, source: "Swiggy", category: "Partner", amount: 7200, percentage: 9, transactions: 54 },
-]
-
-// Mock data for Profit/Loss
-const mockProfitData = [
-    { id: 1, month: "January", revenue: 82000, expenses: 48000, profit: 34000, margin: 41.5 },
-    { id: 2, month: "February", revenue: 78000, expenses: 45000, profit: 33000, margin: 42.3 },
-    { id: 3, month: "March", revenue: 95000, expenses: 52000, profit: 43000, margin: 45.3 },
-    { id: 4, month: "April", revenue: 88000, expenses: 49000, profit: 39000, margin: 44.3 },
-]
-
-// Mock data for Customer Trends
-const mockCustomerData = [
-    { id: 1, name: "John Doe", orders: 15, totalSpent: 4500, lastOrder: "2026-01-25", status: "Active" },
-    { id: 2, name: "Jane Smith", orders: 8, totalSpent: 2400, lastOrder: "2026-01-24", status: "Active" },
-    { id: 3, name: "Mike Johnson", orders: 3, totalSpent: 890, lastOrder: "2026-01-20", status: "New" },
-    { id: 4, name: "Sarah Wilson", orders: 22, totalSpent: 6600, lastOrder: "2026-01-26", status: "VIP" },
-    { id: 5, name: "David Brown", orders: 5, totalSpent: 1500, lastOrder: "2026-01-15", status: "Inactive" },
-]
-
 export const ReportsAnalytics = () => {
+    const { outletId } = useOutlet()
+
     const [activeTab, setActiveTab] = useState<ReportTab>("sales")
     const [categoryFilter, setCategoryFilter] = useState("All")
     const [searchQuery, setSearchQuery] = useState("")
     const [selectedYear, setSelectedYear] = useState("2026")
+
+    const [salesData, setSalesData] = useState<any[]>([])
+    const [revenueData, setRevenueData] = useState<any[]>([])
+    const [profitData, setProfitData] = useState<any[]>([])
+    const [customerData, setCustomerData] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
 
     const tabs = [
         { id: "sales" as ReportTab, label: "Sales Report" },
@@ -64,23 +37,78 @@ export const ReportsAnalytics = () => {
 
     const categories = ["All", "Meals", "Beverages", "SpecialFoods", "Desserts"]
 
+    useEffect(() => {
+        if (outletId) {
+            fetchData()
+        }
+    }, [outletId, activeTab])
+
+    const fetchData = async () => {
+        if (!outletId) return
+
+        try {
+            setLoading(true)
+            const params: AnalyticsParams = {
+                startDate: `${selectedYear}-01-01`,
+                endDate: `${selectedYear}-12-31`,
+            }
+
+            // Fetch data based on active tab
+            switch (activeTab) {
+                case "sales":
+                    const salesRes = await reportService.getSalesReport(parseInt(outletId), params)
+                    if (salesRes.success && salesRes.data) {
+                        setSalesData(Array.isArray(salesRes.data) ? salesRes.data : [])
+                    }
+                    break
+
+                case "revenue":
+                    const revenueRes = await reportService.getRevenueSplit(parseInt(outletId), params)
+                    if (revenueRes.success && revenueRes.data) {
+                        setRevenueData(Array.isArray(revenueRes.data) ? revenueRes.data : [])
+                    }
+                    break
+
+                case "profit":
+                    const profitRes = await reportService.getProfitLossTrends(parseInt(outletId), params)
+                    if (profitRes.success && profitRes.data) {
+                        setProfitData(Array.isArray(profitRes.data) ? profitRes.data : [])
+                    }
+                    break
+
+                case "customers":
+                    const customerRes = await reportService.getCustomerOverview(parseInt(outletId), params)
+                    if (customerRes.success && customerRes.data) {
+                        setCustomerData(Array.isArray(customerRes.data) ? customerRes.data : [])
+                    }
+                    break
+            }
+        } catch (error) {
+            console.error("Error fetching report data:", error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
     // Filter sales data
-    const filteredSalesData = mockSalesData.filter((item) => {
+    const filteredSalesData = salesData.filter((item) => {
         const matchesCategory = categoryFilter === "All" || item.category === categoryFilter
-        const matchesSearch = item.product.toLowerCase().includes(searchQuery.toLowerCase())
+        const matchesSearch = item.product?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.name?.toLowerCase().includes(searchQuery.toLowerCase())
         return matchesCategory && matchesSearch
     })
 
     // Filter revenue data
-    const filteredRevenueData = mockRevenueData.filter((item) => {
+    const filteredRevenueData = revenueData.filter((item) => {
         const matchesCategory = categoryFilter === "All" || item.category === categoryFilter
-        const matchesSearch = item.source.toLowerCase().includes(searchQuery.toLowerCase())
+        const matchesSearch = item.source?.toLowerCase().includes(searchQuery.toLowerCase())
         return matchesCategory && matchesSearch
     })
 
     // Filter customer data
-    const filteredCustomerData = mockCustomerData.filter((item) => {
-        const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const filteredCustomerData = customerData.filter((item) => {
+        const matchesSearch = item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.customerName?.toLowerCase().includes(searchQuery.toLowerCase())
         return matchesSearch
     })
 
@@ -108,7 +136,7 @@ export const ReportsAnalytics = () => {
                 filename = "revenue_analytics"
                 break
             case "profit":
-                dataToExport = mockProfitData
+                dataToExport = profitData
                 filename = "profit_loss_report"
                 break
             case "customers":
@@ -117,7 +145,10 @@ export const ReportsAnalytics = () => {
                 break
         }
 
-        if (dataToExport.length === 0) return
+        if (dataToExport.length === 0) {
+            alert("No data to export")
+            return
+        }
 
         const headers = Object.keys(dataToExport[0]).join(",")
         const csvContent = [
@@ -136,6 +167,14 @@ export const ReportsAnalytics = () => {
             link.click()
             document.body.removeChild(link)
         }
+    }
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        )
     }
 
     return (
@@ -211,7 +250,10 @@ export const ReportsAnalytics = () => {
                     </Select>
                 )}
 
-                <button className="px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 bg-card border border-border text-foreground hover:bg-muted transition-colors">
+                <button
+                    onClick={fetchData}
+                    className="px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 bg-card border border-border text-foreground hover:bg-muted transition-colors"
+                >
                     <RefreshCw className="w-4 h-4" />
                     Refresh
                 </button>
@@ -232,41 +274,27 @@ export const ReportsAnalytics = () => {
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Price</th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Orders</th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Revenue</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredSalesData.map((item) => (
-                                    <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                                        <td className="px-6 py-4 text-foreground">{item.product}</td>
-                                        <td className="px-6 py-4 text-muted-foreground">{item.category}</td>
-                                        <td className="px-6 py-4 text-green-500 font-medium">₹{item.price.toFixed(2)}</td>
-                                        <td className="px-6 py-4 text-muted-foreground">{item.orders}</td>
-                                        <td className="px-6 py-4 text-green-500 font-semibold">₹{item.revenue.toLocaleString()}</td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex gap-2">
-                                                <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-500 text-white hover:bg-green-600 transition-colors">
-                                                    View
-                                                </button>
-                                                <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-pink-500 text-white hover:bg-pink-600 transition-colors">
-                                                    Export
-                                                </button>
-                                            </div>
-                                        </td>
+                                {filteredSalesData.length > 0 ? filteredSalesData.map((item, idx) => (
+                                    <tr key={idx} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                                        <td className="px-6 py-4 text-foreground">{item.product || item.name || 'N/A'}</td>
+                                        <td className="px-6 py-4 text-muted-foreground">{item.category || 'N/A'}</td>
+                                        <td className="px-6 py-4 text-green-500 font-medium">₹{item.price?.toFixed(2) || '0.00'}</td>
+                                        <td className="px-6 py-4 text-muted-foreground">{item.orders || item.totalOrders || 0}</td>
+                                        <td className="px-6 py-4 text-green-500 font-semibold">₹{(item.revenue || item.totalRevenue || 0).toLocaleString()}</td>
                                     </tr>
-                                ))}
+                                )) : (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">No sales data available</td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
                     <div className="p-4 border-t border-border flex items-center justify-between">
-                        <span className="text-sm text-green-500">Showing 1 to {filteredSalesData.length} of {filteredSalesData.length} results</span>
-                        <div className="flex items-center gap-2">
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">«</button>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">‹</button>
-                            <span className="px-3 py-1.5 text-sm text-foreground">Page 1 of 1</span>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">›</button>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">»</button>
-                        </div>
+                        <span className="text-sm text-green-500">Showing {filteredSalesData.length} results</span>
                     </div>
                 </div>
             )}
@@ -286,41 +314,27 @@ export const ReportsAnalytics = () => {
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Amount</th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Percentage</th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Transactions</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredRevenueData.map((item) => (
-                                    <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                                        <td className="px-6 py-4 text-foreground">{item.source}</td>
-                                        <td className="px-6 py-4 text-muted-foreground">{item.category}</td>
-                                        <td className="px-6 py-4 text-green-500 font-semibold">₹{item.amount.toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-blue-500">{item.percentage}%</td>
-                                        <td className="px-6 py-4 text-muted-foreground">{item.transactions}</td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex gap-2">
-                                                <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-500 text-white hover:bg-green-600 transition-colors">
-                                                    Details
-                                                </button>
-                                                <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-pink-500 text-white hover:bg-pink-600 transition-colors">
-                                                    Export
-                                                </button>
-                                            </div>
-                                        </td>
+                                {filteredRevenueData.length > 0 ? filteredRevenueData.map((item, idx) => (
+                                    <tr key={idx} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                                        <td className="px-6 py-4 text-foreground">{item.source || 'N/A'}</td>
+                                        <td className="px-6 py-4 text-muted-foreground">{item.category || 'N/A'}</td>
+                                        <td className="px-6 py-4 text-green-500 font-semibold">₹{(item.amount || 0).toLocaleString()}</td>
+                                        <td className="px-6 py-4 text-blue-500">{item.percentage || 0}%</td>
+                                        <td className="px-6 py-4 text-muted-foreground">{item.transactions || 0}</td>
                                     </tr>
-                                ))}
+                                )) : (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">No revenue data available</td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
                     <div className="p-4 border-t border-border flex items-center justify-between">
-                        <span className="text-sm text-green-500">Showing 1 to {filteredRevenueData.length} of {filteredRevenueData.length} results</span>
-                        <div className="flex items-center gap-2">
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">«</button>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">‹</button>
-                            <span className="px-3 py-1.5 text-sm text-foreground">Page 1 of 1</span>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">›</button>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">»</button>
-                        </div>
+                        <span className="text-sm text-green-500">Showing {filteredRevenueData.length} results</span>
                     </div>
                 </div>
             )}
@@ -340,41 +354,27 @@ export const ReportsAnalytics = () => {
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Expenses</th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Profit/Loss</th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Margin</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {mockProfitData.map((item) => (
-                                    <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                                        <td className="px-6 py-4 text-foreground">{item.month}</td>
-                                        <td className="px-6 py-4 text-green-500 font-medium">₹{item.revenue.toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-red-500 font-medium">₹{item.expenses.toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-green-500 font-semibold">₹{item.profit.toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-blue-500">{item.margin}%</td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex gap-2">
-                                                <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-500 text-white hover:bg-green-600 transition-colors">
-                                                    Details
-                                                </button>
-                                                <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-pink-500 text-white hover:bg-pink-600 transition-colors">
-                                                    Export
-                                                </button>
-                                            </div>
-                                        </td>
+                                {profitData.length > 0 ? profitData.map((item, idx) => (
+                                    <tr key={idx} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                                        <td className="px-6 py-4 text-foreground">{item.month || 'N/A'}</td>
+                                        <td className="px-6 py-4 text-green-500 font-medium">₹{(item.revenue || 0).toLocaleString()}</td>
+                                        <td className="px-6 py-4 text-red-500 font-medium">₹{(item.expenses || 0).toLocaleString()}</td>
+                                        <td className="px-6 py-4 text-green-500 font-semibold">₹{(item.profit || 0).toLocaleString()}</td>
+                                        <td className="px-6 py-4 text-blue-500">{item.margin || 0}%</td>
                                     </tr>
-                                ))}
+                                )) : (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">No profit/loss data available</td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
                     <div className="p-4 border-t border-border flex items-center justify-between">
-                        <span className="text-sm text-green-500">Showing 1 to {mockProfitData.length} of {mockProfitData.length} results</span>
-                        <div className="flex items-center gap-2">
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">«</button>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">‹</button>
-                            <span className="px-3 py-1.5 text-sm text-foreground">Page 1 of 1</span>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">›</button>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">»</button>
-                        </div>
+                        <span className="text-sm text-green-500">Showing {profitData.length} results</span>
                     </div>
                 </div>
             )}
@@ -394,41 +394,27 @@ export const ReportsAnalytics = () => {
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Total Spent</th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Last Order</th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredCustomerData.map((item) => (
-                                    <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                                        <td className="px-6 py-4 text-foreground">{item.name}</td>
-                                        <td className="px-6 py-4 text-muted-foreground">{item.orders}</td>
-                                        <td className="px-6 py-4 text-green-500 font-semibold">₹{item.totalSpent.toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-muted-foreground">{item.lastOrder}</td>
-                                        <td className={`px-6 py-4 font-medium ${getStatusColor(item.status)}`}>{item.status}</td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex gap-2">
-                                                <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-500 text-white hover:bg-green-600 transition-colors">
-                                                    View
-                                                </button>
-                                                <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-pink-500 text-white hover:bg-pink-600 transition-colors">
-                                                    History
-                                                </button>
-                                            </div>
-                                        </td>
+                                {filteredCustomerData.length > 0 ? filteredCustomerData.map((item, idx) => (
+                                    <tr key={idx} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                                        <td className="px-6 py-4 text-foreground">{item.name || item.customerName || 'N/A'}</td>
+                                        <td className="px-6 py-4 text-muted-foreground">{item.orders || item.totalOrders || 0}</td>
+                                        <td className="px-6 py-4 text-green-500 font-semibold">₹{(item.totalSpent || 0).toLocaleString()}</td>
+                                        <td className="px-6 py-4 text-muted-foreground">{item.lastOrder ? new Date(item.lastOrder).toLocaleDateString() : 'N/A'}</td>
+                                        <td className={`px-6 py-4 font-medium ${getStatusColor(item.status || 'Active')}`}>{item.status || 'Active'}</td>
                                     </tr>
-                                ))}
+                                )) : (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">No customer data available</td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
                     <div className="p-4 border-t border-border flex items-center justify-between">
-                        <span className="text-sm text-green-500">Showing 1 to {filteredCustomerData.length} of {filteredCustomerData.length} results</span>
-                        <div className="flex items-center gap-2">
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">«</button>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">‹</button>
-                            <span className="px-3 py-1.5 text-sm text-foreground">Page 1 of 1</span>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">›</button>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">»</button>
-                        </div>
+                        <span className="text-sm text-green-500">Showing {filteredCustomerData.length} results</span>
                     </div>
                 </div>
             )}

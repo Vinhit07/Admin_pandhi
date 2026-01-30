@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
@@ -10,58 +10,110 @@ import {
     SelectValue,
 } from "../components/ui/select"
 import { Card, CardContent } from "../components/ui/card"
-import { Search } from "lucide-react"
+import { Search, Loader2 } from "lucide-react"
 import { DataTable } from "../components/ui/data-table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
-
-interface Expense {
-    category: string
-    description: string
-    amount: string
-    date: string
-    paymentMethod: string
-}
-
-const mockExpenses: Expense[] = [
-    { category: "Utilities", description: "Electricity bill", amount: "₹5,000", date: "15-01-2026", paymentMethod: "Bank Transfer" },
-    { category: "Supplies", description: "Kitchen supplies", amount: "₹12,000", date: "14-01-2026", paymentMethod: "Cash" },
-    { category: "Salaries", description: "Staff salaries", amount: "₹80,000", date: "10-01-2026", paymentMethod: "Bank Transfer" },
-    { category: "Maintenance", description: "Equipment repair", amount: "₹3,500", date: "08-01-2026", paymentMethod: "UPI" },
-    { category: "Rent", description: "Monthly rent", amount: "₹25,000", date: "01-01-2026", paymentMethod: "Bank Transfer" },
-]
+import { useOutlet } from "../context/OutletContext"
+import { expenditureService, reportService } from "../services"
+import type { Expense } from "../types/api"
 
 export const ExpenditureManagement = () => {
+    const { outletId } = useOutlet()
+
     const [searchQuery, setSearchQuery] = useState("")
-    const [fromDate, setFromDate] = useState("dd-mm-yyyy")
-    const [toDate, setToDate] = useState("dd-mm-yyyy")
-    const [expenses] = useState(mockExpenses)
+    const [fromDate, setFromDate] = useState("")
+    const [toDate, setToDate] = useState("")
+
+    const [expenses, setExpenses] = useState<Expense[]>([])
+    const [loading, setLoading] = useState(true)
+
+    // Stats from dashboard
+    const [stats, setStats] = useState({
+        totalRevenue: 0,
+        totalExpenses: 0,
+        netProfit: 0,
+        totalOrders: 0
+    })
 
     // Form states
-    const [expenseDate, setExpenseDate] = useState("dd-mm-yyyy")
+    const [expenseDate, setExpenseDate] = useState("")
     const [category, setCategory] = useState("")
     const [description, setDescription] = useState("")
     const [amount, setAmount] = useState("")
     const [paymentMethod, setPaymentMethod] = useState("")
-    const [paidTo, setPaidTo] = useState("")
+
+    useEffect(() => {
+        if (outletId) {
+            fetchData()
+        }
+    }, [outletId])
+
+    const fetchData = async () => {
+        if (!outletId) return
+        try {
+            setLoading(true)
+            const [expensesRes, overviewRes] = await Promise.all([
+                expenditureService.getExpenses(outletId),
+                reportService.getDashboardOverview()
+            ])
+
+            if (expensesRes.success && expensesRes.data) {
+                setExpenses(Array.isArray(expensesRes.data) ? expensesRes.data : [])
+            }
+
+            if (overviewRes.success && overviewRes.data) {
+                setStats({
+                    totalRevenue: overviewRes.data.totalRevenue || 0,
+                    totalExpenses: 0, // Calculate from expenses or from API if available
+                    netProfit: overviewRes.data.totalRevenue || 0,
+                    totalOrders: overviewRes.data.totalOrders || 0
+                })
+            }
+        } catch (error) {
+            console.error("Error fetching expenditure data:", error)
+        } finally {
+            setLoading(false)
+        }
+    }
 
     const handleClear = () => {
-        setFromDate("dd-mm-yyyy")
-        setToDate("dd-mm-yyyy")
+        setFromDate("")
+        setToDate("")
         setSearchQuery("")
     }
 
     const handleReset = () => {
-        setExpenseDate("dd-mm-yyyy")
+        setExpenseDate("")
         setCategory("")
         setDescription("")
         setAmount("")
         setPaymentMethod("")
-        setPaidTo("")
     }
 
-    const handleAddExpense = () => {
-        // Handle add expense logic
-        console.log("Adding expense:", { expenseDate, category, description, amount, paymentMethod, paidTo })
+    const handleAddExpense = async () => {
+        if (!category || !description || !amount || !expenseDate || !outletId) {
+            alert("Please fill in all required fields")
+            return
+        }
+
+        try {
+            const response = await expenditureService.addExpense({
+                category,
+                description,
+                amount: parseFloat(amount),
+                date: expenseDate,
+                outletId
+            })
+
+            if (response.success) {
+                alert("Expense added successfully")
+                handleReset()
+                fetchData()
+            }
+        } catch (error) {
+            console.error("Error adding expense:", error)
+            alert("Failed to add expense")
+        }
     }
 
     // Expense Tracker Columns
@@ -81,25 +133,37 @@ export const ExpenditureManagement = () => {
             accessorKey: "amount",
             header: "AMOUNT",
             cell: ({ row }) => (
-                <span className="font-semibold">{row.getValue("amount")}</span>
+                <span className="font-semibold">₹{row.getValue("amount")}</span>
             ),
         },
         {
             accessorKey: "date",
             header: "DATE",
+            cell: ({ row }) => new Date(row.getValue("date")).toLocaleDateString()
         },
         {
-            accessorKey: "paymentMethod",
-            header: "PAYMENT METHOD",
+            accessorKey: "createdByName",
+            header: "CREATED BY",
+            cell: ({ row }) => row.original.createdByName || "N/A"
         },
     ]
 
     const filteredExpenses = expenses.filter(expense => {
         const matchesSearch = expense.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            expense.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            expense.paymentMethod.toLowerCase().includes(searchQuery.toLowerCase())
+            (expense.description || '').toLowerCase().includes(searchQuery.toLowerCase())
         return matchesSearch
     })
+
+    // Calculate total expenses from filtered data
+    const totalExpensesAmount = filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0)
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">
@@ -120,7 +184,7 @@ export const ExpenditureManagement = () => {
                                 <div className="bg-card border-2 border-border rounded-full px-4 py-2 shadow-md flex items-center gap-2">
                                     <span className="text-sm text-muted-foreground">From Date</span>
                                     <Input
-                                        type="text"
+                                        type="date"
                                         value={fromDate}
                                         onChange={(e) => setFromDate(e.target.value)}
                                         className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent w-32"
@@ -131,7 +195,7 @@ export const ExpenditureManagement = () => {
                                 <div className="bg-card border-2 border-border rounded-full px-4 py-2 shadow-md flex items-center gap-2">
                                     <span className="text-sm text-muted-foreground">To Date</span>
                                     <Input
-                                        type="text"
+                                        type="date"
                                         value={toDate}
                                         onChange={(e) => setToDate(e.target.value)}
                                         className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent w-32"
@@ -150,28 +214,28 @@ export const ExpenditureManagement = () => {
                             <Card className="rounded-2xl border-2">
                                 <CardContent className="p-6">
                                     <p className="text-sm text-muted-foreground mb-2">Total revenue</p>
-                                    <p className="text-3xl font-bold text-primary">₹450000</p>
+                                    <p className="text-3xl font-bold text-primary">₹{stats.totalRevenue.toLocaleString()}</p>
                                 </CardContent>
                             </Card>
 
                             <Card className="rounded-2xl border-2">
                                 <CardContent className="p-6">
                                     <p className="text-sm text-muted-foreground mb-2">Total expenses</p>
-                                    <p className="text-3xl font-bold text-destructive">₹0</p>
+                                    <p className="text-3xl font-bold text-destructive">₹{totalExpensesAmount.toLocaleString()}</p>
                                 </CardContent>
                             </Card>
 
                             <Card className="rounded-2xl border-2">
                                 <CardContent className="p-6">
                                     <p className="text-sm text-muted-foreground mb-2">Net profit</p>
-                                    <p className="text-3xl font-bold text-green-600">₹450000</p>
+                                    <p className="text-3xl font-bold text-green-600">₹{(stats.totalRevenue - totalExpensesAmount).toLocaleString()}</p>
                                 </CardContent>
                             </Card>
 
                             <Card className="rounded-2xl border-2">
                                 <CardContent className="p-6">
                                     <p className="text-sm text-muted-foreground mb-2">Total orders</p>
-                                    <p className="text-3xl font-bold text-primary">45</p>
+                                    <p className="text-3xl font-bold text-primary">{stats.totalOrders}</p>
                                 </CardContent>
                             </Card>
                         </div>
@@ -180,7 +244,7 @@ export const ExpenditureManagement = () => {
                         <div className="bg-card border-2 border-border rounded-full px-4 py-2 shadow-md flex items-center gap-2 max-w-md ml-auto">
                             <Search size={20} className="text-muted-foreground" />
                             <Input
-                                placeholder="Search by category, description, or payee"
+                                placeholder="Search by category or description"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
@@ -203,9 +267,9 @@ export const ExpenditureManagement = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {/* Date */}
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium">Date</label>
+                                    <label className="text-sm font-medium">Date *</label>
                                     <Input
-                                        type="text"
+                                        type="date"
                                         value={expenseDate}
                                         onChange={(e) => setExpenseDate(e.target.value)}
                                         className="rounded-xl"
@@ -214,24 +278,25 @@ export const ExpenditureManagement = () => {
 
                                 {/* Category */}
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium">Category</label>
+                                    <label className="text-sm font-medium">Category *</label>
                                     <Select value={category} onValueChange={setCategory}>
                                         <SelectTrigger className="rounded-xl">
                                             <SelectValue placeholder="Select Category" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="utilities">Utilities</SelectItem>
-                                            <SelectItem value="supplies">Supplies</SelectItem>
-                                            <SelectItem value="salaries">Salaries</SelectItem>
-                                            <SelectItem value="maintenance">Maintenance</SelectItem>
-                                            <SelectItem value="rent">Rent</SelectItem>
+                                            <SelectItem value="Utilities">Utilities</SelectItem>
+                                            <SelectItem value="Supplies">Supplies</SelectItem>
+                                            <SelectItem value="Salaries">Salaries</SelectItem>
+                                            <SelectItem value="Maintenance">Maintenance</SelectItem>
+                                            <SelectItem value="Rent">Rent</SelectItem>
+                                            <SelectItem value="Other">Other</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
 
                                 {/* Expense Description */}
                                 <div className="space-y-2 md:col-span-2">
-                                    <label className="text-sm font-medium">Expense Description</label>
+                                    <label className="text-sm font-medium">Expense Description *</label>
                                     <Input
                                         placeholder="Enter description"
                                         value={description}
@@ -242,9 +307,9 @@ export const ExpenditureManagement = () => {
 
                                 {/* Amount */}
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium">Amount</label>
+                                    <label className="text-sm font-medium">Amount (₹) *</label>
                                     <Input
-                                        type="text"
+                                        type="number"
                                         placeholder="Enter amount"
                                         value={amount}
                                         onChange={(e) => setAmount(e.target.value)}
@@ -260,23 +325,12 @@ export const ExpenditureManagement = () => {
                                             <SelectValue placeholder="Select Method" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="cash">Cash</SelectItem>
-                                            <SelectItem value="bank">Bank Transfer</SelectItem>
-                                            <SelectItem value="upi">UPI</SelectItem>
-                                            <SelectItem value="card">Card</SelectItem>
+                                            <SelectItem value="Cash">Cash</SelectItem>
+                                            <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                                            <SelectItem value="UPI">UPI</SelectItem>
+                                            <SelectItem value="Card">Card</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                </div>
-
-                                {/* Paid To */}
-                                <div className="space-y-2 md:col-span-2">
-                                    <label className="text-sm font-medium">Paid To</label>
-                                    <Input
-                                        placeholder="Enter recipient"
-                                        value={paidTo}
-                                        onChange={(e) => setPaidTo(e.target.value)}
-                                        className="rounded-xl"
-                                    />
                                 </div>
                             </div>
 

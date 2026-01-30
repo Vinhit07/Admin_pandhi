@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
@@ -10,8 +10,10 @@ import {
     SelectValue,
 } from "../components/ui/select"
 import { Badge } from "../components/ui/badge"
-import { RefreshCw, Search } from "lucide-react"
+import { RefreshCw, Search, Loader2 } from "lucide-react"
 import { DataTable } from "../components/ui/data-table"
+import { useOutlet } from "../context/OutletContext"
+import { orderService } from "../services"
 
 interface Order {
     id: string
@@ -24,24 +26,6 @@ interface Order {
     deliveryDate: string
 }
 
-const mockOrders: Order[] = [
-    { id: "#051", name: "Test", orderItems: "peri peri chicken roll", status: "cancelled", totalAmount: "₹90.00", orderType: "App", orderDate: "05/01/2026", deliveryDate: "15/01/2026" },
-    { id: "#050", name: "Test", orderItems: "peri peri chicken roll", status: "cancelled", totalAmount: "₹90.00", orderType: "App", orderDate: "07/01/2026", deliveryDate: "07/01/2026" },
-    { id: "#049", name: "Test", orderItems: "chicken biryani", status: "cancelled", totalAmount: "₹200.00", orderType: "App", orderDate: "06/01/2026", deliveryDate: "06/01/2026" },
-    { id: "#048", name: "Test", orderItems: "chicken biryani, +2", status: "partially delivered", totalAmount: "₹274.50", orderType: "App", orderDate: "06/01/2026", deliveryDate: "06/01/2026" },
-    { id: "#047", name: "Test", orderItems: "extra chapathi, peri peri chicken roll", status: "delivered", totalAmount: "₹105.00", orderType: "App", orderDate: "06/01/2026", deliveryDate: "06/01/2026" },
-    { id: "#046", name: "Pavan", orderItems: "peri peri chicken roll", status: "cancelled", totalAmount: "₹270.00", orderType: "App", orderDate: "30/12/2025", deliveryDate: "01/01/2026" },
-    { id: "#045", name: "Pavan", orderItems: "chicken biryani", status: "cancelled", totalAmount: "₹180.00", orderType: "App", orderDate: "30/12/2025", deliveryDate: "01/01/2026" },
-    { id: "#044", name: "Sharon Adhitya", orderItems: "chicken biryani", status: "cancelled", totalAmount: "₹90.00", orderType: "App", orderDate: "22/12/2025", deliveryDate: "22/12/2025" },
-    { id: "#043", name: "John Doe", orderItems: "mutton biryani", status: "delivered", totalAmount: "₹350.00", orderType: "App", orderDate: "20/12/2025", deliveryDate: "20/12/2025" },
-    { id: "#042", name: "Jane Smith", orderItems: "veg biryani", status: "delivered", totalAmount: "₹150.00", orderType: "App", orderDate: "19/12/2025", deliveryDate: "19/12/2025" },
-    { id: "#041", name: "Mike Johnson", orderItems: "chicken 65", status: "partially delivered", totalAmount: "₹180.00", orderType: "App", orderDate: "18/12/2025", deliveryDate: "18/12/2025" },
-    { id: "#040", name: "Sarah Williams", orderItems: "paneer tikka", status: "delivered", totalAmount: "₹220.00", orderType: "App", orderDate: "17/12/2025", deliveryDate: "17/12/2025" },
-    { id: "#039", name: "Tom Brown", orderItems: "fish fry", status: "cancelled", totalAmount: "₹280.00", orderType: "App", orderDate: "16/12/2025", deliveryDate: "16/12/2025" },
-    { id: "#038", name: "Alice Cooper", orderItems: "egg curry", status: "delivered", totalAmount: "₹120.00", orderType: "App", orderDate: "15/12/2025", deliveryDate: "15/12/2025" },
-    { id: "#037", name: "Bob Martin", orderItems: "dal tadka", status: "delivered", totalAmount: "₹100.00", orderType: "App", orderDate: "14/12/2025", deliveryDate: "14/12/2025" },
-]
-
 const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", className: string }> = {
         "delivered": { variant: "default", className: "bg-green-100 text-green-800 hover:bg-green-100" },
@@ -53,12 +37,35 @@ const getStatusBadge = (status: string) => {
 }
 
 export const OrderManagement = () => {
+    const { outletId } = useOutlet()
+
     const [searchQuery, setSearchQuery] = useState("")
     const [statusFilter, setStatusFilter] = useState("all")
-    const [orders, setOrders] = useState(mockOrders)
+    const [orders, setOrders] = useState<Order[]>([])
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        if (outletId) {
+            fetchOrders()
+        }
+    }, [outletId])
+
+    const fetchOrders = async () => {
+        if (!outletId) return
+
+        try {
+            setLoading(true)
+            const response = await orderService.getOrders(outletId)
+            setOrders(response.data || [])
+        } catch (error) {
+            console.error('Error fetching orders:', error)
+        } finally {
+            setLoading(false)
+        }
+    }
 
     const handleRefresh = () => {
-        setOrders([...mockOrders])
+        fetchOrders()
         setSearchQuery("")
         setStatusFilter("all")
     }
@@ -127,11 +134,16 @@ export const OrderManagement = () => {
         return matchesSearch && matchesStatus
     })
 
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
+
     return (
         <div className="space-y-6">
-            {/* Header */}
-
-
             {/* Filters and Search - Pill shaped */}
             <div className="flex items-center gap-4">
                 {/* Status Filter */}

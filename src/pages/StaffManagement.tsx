@@ -1,25 +1,45 @@
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardContent } from "../components/ui/card"
 import { Avatar, AvatarFallback } from "../components/ui/avatar"
-import { Mail, Phone, Briefcase, User } from "lucide-react"
+import { Mail, Phone, Briefcase, User, Loader2 } from "lucide-react"
+import { useOutlet } from "../context/OutletContext"
+import { staffService } from "../services"
 
 interface Staff {
-    id: string
+    id: number
     name: string
     email: string
-    phone: string
-    position: string
+    phone?: string
+    position?: string
 }
-
-const mockStaff: Staff[] = [
-    { id: "1", name: "Tharini", email: "tharinimohan@gmail.com", phone: "+91(33)914400", position: "Manager" },
-    { id: "2", name: "Staff", email: "staff@gmail.com", phone: "9899234450", position: "Trainee" },
-    { id: "3", name: "John Doe", email: "john.doe@gmail.com", phone: "+91(98)765432", position: "Chef" },
-    { id: "4", name: "Jane Smith", email: "jane.smith@gmail.com", phone: "+91(87)654321", position: "Supervisor" },
-]
 
 export const StaffManagement = () => {
     const navigate = useNavigate()
+    const { outletId } = useOutlet()
+
+    const [staffList, setStaffList] = useState<Staff[]>([])
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        if (outletId) {
+            fetchStaff()
+        }
+    }, [outletId])
+
+    const fetchStaff = async () => {
+        if (!outletId) return
+
+        try {
+            setLoading(true)
+            const response = await staffService.getStaffs(outletId)
+            setStaffList(response.data || [])
+        } catch (error) {
+            console.error('Error fetching staff:', error)
+        } finally {
+            setLoading(false)
+        }
+    }
 
     const getInitials = (name: string) => {
         return name
@@ -30,15 +50,23 @@ export const StaffManagement = () => {
             .slice(0, 2)
     }
 
-    const handleStaffClick = (staffId: string) => {
+    const handleStaffClick = (staffId: number) => {
         navigate(`/staff-management/${staffId}`)
+    }
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        )
     }
 
     return (
         <div className="space-y-6">
             {/* Staff Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {mockStaff.map((staff) => (
+                {staffList.map((staff) => (
                     <Card
                         key={staff.id}
                         className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 rounded-3xl border-2"
@@ -66,20 +94,31 @@ export const StaffManagement = () => {
                                     <span className="text-sm text-muted-foreground">{staff.email}</span>
                                 </div>
 
-                                <div className="flex items-center gap-2">
-                                    <Phone size={16} className="text-muted-foreground" />
-                                    <span className="text-sm text-muted-foreground">{staff.phone}</span>
-                                </div>
+                                {staff.phone && (
+                                    <div className="flex items-center gap-2">
+                                        <Phone size={16} className="text-muted-foreground" />
+                                        <span className="text-sm text-muted-foreground">{staff.phone}</span>
+                                    </div>
+                                )}
 
-                                <div className="flex items-center gap-2">
-                                    <Briefcase size={16} className="text-muted-foreground" />
-                                    <span className="text-sm font-medium">{staff.position}</span>
-                                </div>
+                                {staff.position && (
+                                    <div className="flex items-center gap-2">
+                                        <Briefcase size={16} className="text-muted-foreground" />
+                                        <span className="text-sm font-medium">{staff.position}</span>
+                                    </div>
+                                )}
                             </div>
                         </CardContent>
                     </Card>
                 ))}
             </div>
+
+            {staffList.length === 0 && (
+                <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+                    <User className="h-16 w-16 mb-4" />
+                    <p className="text-lg font-medium">No staff members found</p>
+                </div>
+            )}
         </div>
     )
 }

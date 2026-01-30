@@ -1,11 +1,13 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
 import { Badge } from "../components/ui/badge"
-import { RefreshCw, Search } from "lucide-react"
+import { RefreshCw, Search, Loader2 } from "lucide-react"
 import { DataTable } from "../components/ui/data-table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
+import { useOutlet } from "../context/OutletContext"
+import { walletService } from "../services"
 
 interface WalletSummary {
     walletId: string
@@ -34,44 +36,43 @@ interface PaidOrder {
     paymentStatus: string
 }
 
-const mockWalletSummary: WalletSummary[] = [
-    { walletId: "#W2027", customerName: "Test", walletBalance: "₹0.00", totalRecharged: "₹0.00", totalUsed: "₹0.00", lastRecharge: "N/A", lastOrder: "N/A" },
-    { walletId: "#W2026", customerName: "Indu", walletBalance: "₹0.00", totalRecharged: "₹0.00", totalUsed: "₹0.00", lastRecharge: "N/A", lastOrder: "N/A" },
-    { walletId: "#W2000", customerName: "Test", walletBalance: "₹4835.91", totalRecharged: "₹6050.00", totalUsed: "₹2352.41", lastRecharge: "20/01/2026", lastOrder: "09/01/2026" },
-    { walletId: "#W2024", customerName: "Pavan", walletBalance: "₹320.00", totalRecharged: "₹500.00", totalUsed: "₹180.00", lastRecharge: "30/12/2025", lastOrder: "30/12/2025" },
-    { walletId: "#W2020", customerName: "Pavan", walletBalance: "₹500.00", totalRecharged: "₹500.00", totalUsed: "₹0.00", lastRecharge: "20/12/2025", lastOrder: "N/A" },
-    { walletId: "#W2018", customerName: "Arjun M", walletBalance: "₹0.00", totalRecharged: "₹0.00", totalUsed: "₹0.00", lastRecharge: "N/A", lastOrder: "N/A" },
-    { walletId: "#W2017", customerName: "GOPIKUL J", walletBalance: "₹0.00", totalRecharged: "₹0.00", totalUsed: "₹0.00", lastRecharge: "N/A", lastOrder: "N/A" },
-    { walletId: "#W2005", customerName: "Latha Ilanchelan", walletBalance: "₹67.64", totalRecharged: "₹200.00", totalUsed: "₹422.29", lastRecharge: "20/12/2025", lastOrder: "20/12/2025" },
-]
-
-const mockRechargeHistory: RechargeHistory[] = [
-    { rechargeId: "#RC1011", customerName: "Test", amount: "₹500.00", date: "03/12/2025", paymentMethod: "UPI", status: "RECHARGE" },
-    { rechargeId: "#RC1010", customerName: "Test", amount: "₹1000.00", date: "04/12/2025", paymentMethod: "UPI", status: "RECHARGE" },
-    { rechargeId: "#RC1005", customerName: "Test", amount: "₹-180.00", date: "04/12/2025", paymentMethod: "WALLET", status: "DEDUCT" },
-    { rechargeId: "#RC1004", customerName: "Test", amount: "₹-180.00", date: "04/12/2025", paymentMethod: "WALLET", status: "DEDUCT" },
-    { rechargeId: "#RC1003", customerName: "Test", amount: "₹500.00", date: "06/12/2025", paymentMethod: "UPI", status: "RECHARGE" },
-    { rechargeId: "#RC1006", customerName: "Test", amount: "₹-270.00", date: "09/12/2025", paymentMethod: "WALLET", status: "DEDUCT" },
-    { rechargeId: "#RC1007", customerName: "Test", amount: "₹270.00", date: "09/12/2025", paymentMethod: "WALLET", status: "RECHARGE" },
-]
-
-const mockPaidOrders: PaidOrder[] = [
-    { orderId: "#ORD051", customerName: "Test", amount: "₹90.00", date: "09/01/2026", paymentStatus: "Wallet Paid" },
-    { orderId: "#ORD050", customerName: "Test", amount: "₹90.00", date: "07/01/2026", paymentStatus: "Wallet Paid" },
-    { orderId: "#ORD048", customerName: "Test", amount: "₹274.50", date: "08/01/2026", paymentStatus: "Wallet Paid" },
-    { orderId: "#ORD047", customerName: "Test", amount: "₹105.00", date: "08/01/2026", paymentStatus: "Wallet Paid" },
-    { orderId: "#ORD045", customerName: "Pavan", amount: "₹180.00", date: "30/12/2025", paymentStatus: "Wallet Paid" },
-    { orderId: "#ORD044", customerName: "Sharon Adhitya", amount: "₹90.00", date: "22/12/2025", paymentStatus: "Wallet Paid" },
-    { orderId: "#ORD043", customerName: "Latha Ilanchelan", amount: "₹112.49", date: "20/12/2025", paymentStatus: "Wallet Paid" },
-]
-
 export const WalletManagement = () => {
+    const { outletId } = useOutlet()
+
     const [searchQuery, setSearchQuery] = useState("")
-    const [walletData] = useState(mockWalletSummary)
-    const [rechargeData] = useState(mockRechargeHistory)
-    const [paidOrdersData] = useState(mockPaidOrders)
+    const [walletData, setWalletData] = useState<WalletSummary[]>([])
+    const [rechargeData, setRechargeData] = useState<RechargeHistory[]>([])
+    const [paidOrdersData, setPaidOrdersData] = useState<PaidOrder[]>([])
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        if (outletId) {
+            fetchData()
+        }
+    }, [outletId])
+
+    const fetchData = async () => {
+        if (!outletId) return
+
+        try {
+            setLoading(true)
+            const [walletRes, rechargeRes, ordersRes] = await Promise.all([
+                walletService.getWalletHistory(outletId), // Note: Verify endpoint mapping 
+                walletService.getRechargeHistory(outletId),
+                walletService.getOrdersPaidViaWallet(outletId)
+            ])
+            setWalletData(walletRes.data || [])
+            setRechargeData(rechargeRes.data || [])
+            setPaidOrdersData(ordersRes.data || [])
+        } catch (error) {
+            console.error('Error fetching wallet data:', error)
+        } finally {
+            setLoading(false)
+        }
+    }
 
     const handleRefresh = () => {
+        fetchData()
         setSearchQuery("")
     }
 
@@ -207,6 +208,14 @@ export const WalletManagement = () => {
         order.orderId.toLowerCase().includes(searchQuery.toLowerCase()) ||
         order.customerName.toLowerCase().includes(searchQuery.toLowerCase())
     )
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">

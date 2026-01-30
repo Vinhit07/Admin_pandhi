@@ -1,7 +1,39 @@
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
+import { reportService } from "../services"
+import { Loader2 } from "lucide-react"
 
 export const Home = () => {
+    const [loading, setLoading] = useState(true)
+    const [dashboardData, setDashboardData] = useState<any>(null)
+
+    useEffect(() => {
+        fetchDashboardData()
+    }, [])
+
+    const fetchDashboardData = async () => {
+        try {
+            setLoading(true)
+            const response = await reportService.getDashboardOverview()
+            setDashboardData(response.data)
+        } catch (error) {
+            console.error('Error fetching dashboard data:', error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const formatCurrency = (amount: number) => `$${amount.toLocaleString()}`
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
+
     return (
         <div className="space-y-6">
             <div>
@@ -14,40 +46,56 @@ export const Home = () => {
                 <Card>
                     <CardHeader className="pb-3">
                         <CardDescription>Total Revenue</CardDescription>
-                        <CardTitle className="text-3xl text-primary">$12,345</CardTitle>
+                        <CardTitle className="text-3xl text-primary">
+                            {formatCurrency(dashboardData?.totalRevenue || 0)}
+                        </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-xs text-muted-foreground">+20.1% from last month</p>
+                        <p className="text-xs text-muted-foreground">
+                            {dashboardData?.revenueGrowth || '+0'}% from last month
+                        </p>
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader className="pb-3">
                         <CardDescription>Active Orders</CardDescription>
-                        <CardTitle className="text-3xl text-secondary">156</CardTitle>
+                        <CardTitle className="text-3xl text-secondary">
+                            {dashboardData?.activeOrders || 0}
+                        </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-xs text-muted-foreground">+12 new today</p>
+                        <p className="text-xs text-muted-foreground">
+                            +{dashboardData?.newOrdersToday || 0} new today
+                        </p>
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader className="pb-3">
                         <CardDescription>Customers</CardDescription>
-                        <CardTitle className="text-3xl">2,345</CardTitle>
+                        <CardTitle className="text-3xl">
+                            {dashboardData?.totalCustomers || 0}
+                        </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-xs text-muted-foreground">+180 this week</p>
+                        <p className="text-xs text-muted-foreground">
+                            +{dashboardData?.newCustomersThisWeek || 0} this week
+                        </p>
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader className="pb-3">
                         <CardDescription>Avg. Order Value</CardDescription>
-                        <CardTitle className="text-3xl">$52.80</CardTitle>
+                        <CardTitle className="text-3xl">
+                            {formatCurrency(dashboardData?.avgOrderValue || 0)}
+                        </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-xs text-muted-foreground">+5.2% from last month</p>
+                        <p className="text-xs text-muted-foreground">
+                            {dashboardData?.avgOrderGrowth || '+0'}% from last month
+                        </p>
                     </CardContent>
                 </Card>
             </div>
@@ -75,7 +123,9 @@ export const Home = () => {
                         <CardTitle>Recent Activity</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-sm text-muted-foreground">5 new orders in the last hour</p>
+                        <p className="text-sm text-muted-foreground">
+                            {dashboardData?.recentOrdersCount || 0} new orders in the last hour
+                        </p>
                     </CardContent>
                 </Card>
 
@@ -84,7 +134,9 @@ export const Home = () => {
                         <CardTitle>Pending Tasks</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-sm text-muted-foreground">3 tickets awaiting response</p>
+                        <p className="text-sm text-muted-foreground">
+                            {dashboardData?.pendingTickets || 0} tickets awaiting response
+                        </p>
                     </CardContent>
                 </Card>
             </div>

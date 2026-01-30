@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
@@ -9,9 +9,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from "../components/ui/select"
-import { RefreshCw, Search } from "lucide-react"
+import { RefreshCw, Search, Loader2 } from "lucide-react"
 import { DataTable } from "../components/ui/data-table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
+import { useOutlet } from "../context/OutletContext"
+import { inventoryService } from "../services"
 
 interface StockItem {
     item: string
@@ -28,35 +30,46 @@ interface StockHistory {
     quantity: number
 }
 
-const mockStockData: StockItem[] = [
-    { item: "peri peri chicken roll", category: "Starters", price: "₹90.00", threshold: 5, availableStock: 110 },
-    { item: "extra chapathi", category: "Meals", price: "₹15.00", threshold: 4, availableStock: 9 },
-    { item: "eruka jamun", category: "Desserts", price: "₹9.99", threshold: 10, availableStock: 1 },
-    { item: "chicken biryani", category: "Meals", price: "₹200.00", threshold: 14, availableStock: 8 },
-    { item: "mutton biryani", category: "Meals", price: "₹350.00", threshold: 10, availableStock: 5 },
-    { item: "veg biryani", category: "Meals", price: "₹150.00", threshold: 8, availableStock: 12 },
-    { item: "chicken 65", category: "Starters", price: "₹180.00", threshold: 6, availableStock: 15 },
-    { item: "paneer tikka", category: "Starters", price: "₹220.00", threshold: 5, availableStock: 7 },
-]
-
-const mockHistoryData: StockHistory[] = [
-    { item: "peri peri chicken roll", category: "Starters", date: "15-01-2026", quantity: 50 },
-    { item: "chicken biryani", category: "Meals", date: "14-01-2026", quantity: 30 },
-    { item: "mutton biryani", category: "Meals", date: "13-01-2026", quantity: 20 },
-    { item: "veg biryani", category: "Meals", date: "12-01-2026", quantity: 25 },
-    { item: "chicken 65", category: "Starters", date: "11-01-2026", quantity: 40 },
-]
-
 export const InventoryManagement = () => {
+    const { outletId } = useOutlet()
+
     const [searchQuery, setSearchQuery] = useState("")
     const [categoryFilter, setCategoryFilter] = useState("all")
-    const [stockData, setStockData] = useState(mockStockData)
-    const [historyData] = useState(mockHistoryData)
+
+    const [stockData, setStockData] = useState<StockItem[]>([])
+    const [historyData, setHistoryData] = useState<StockHistory[]>([])
+
+    const [loading, setLoading] = useState(true)
+
     const [fromDate, setFromDate] = useState("15-01-2026")
     const [toDate, setToDate] = useState("26-01-2026")
 
+    useEffect(() => {
+        if (outletId) {
+            fetchData()
+        }
+    }, [outletId])
+
+    const fetchData = async () => {
+        if (!outletId) return
+
+        try {
+            setLoading(true)
+            const [stocksRes, historyRes] = await Promise.all([
+                inventoryService.getStocks(outletId),
+                inventoryService.getStockHistory(outletId)
+            ])
+            setStockData(stocksRes.data || [])
+            setHistoryData(historyRes.data || [])
+        } catch (error) {
+            console.error('Error fetching inventory data:', error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
     const handleRefresh = () => {
-        setStockData([...mockStockData])
+        fetchData()
         setSearchQuery("")
         setCategoryFilter("all")
     }
@@ -146,6 +159,14 @@ export const InventoryManagement = () => {
         const matchesCategory = categoryFilter === "all" || item.category === categoryFilter
         return matchesSearch && matchesCategory
     })
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">
