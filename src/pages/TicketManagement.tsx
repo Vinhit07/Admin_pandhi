@@ -21,7 +21,7 @@ import {
 } from "../components/ui/dialog"
 import { useOutlet } from "../context/OutletContext"
 import { ticketService } from "../services/ticketService"
-import { Ticket } from "../types/api"
+import type { Ticket } from "../types/api"
 import toast from "react-hot-toast"
 
 export const TicketManagement = () => {
@@ -48,7 +48,7 @@ export const TicketManagement = () => {
         if (!outletId) return
         try {
             setLoading(true)
-            const response = await ticketService.getTickets(parseInt(outletId))
+            const response = await ticketService.getTickets(outletId)
             // Assuming response.data is the list of tickets
             if (response.success && response.data) {
                 // Check if data is array or wrapped
@@ -58,11 +58,7 @@ export const TicketManagement = () => {
             }
         } catch (error) {
             console.error("Error fetching tickets:", error)
-            toast({
-                title: "Error",
-                description: "Failed to load tickets",
-                variant: "destructive"
-            })
+            toast.error("Failed to load tickets")
         } finally {
             setLoading(false)
         }
@@ -92,10 +88,7 @@ export const TicketManagement = () => {
         try {
             const response = await ticketService.closeTicket(selectedTicket.id)
             if (response.success) {
-                toast({
-                    title: "Success",
-                    description: "Ticket closed successfully"
-                })
+                toast.success("Ticket closed successfully")
                 // Refresh list
                 fetchTickets()
                 setChatMessage("")
@@ -103,11 +96,7 @@ export const TicketManagement = () => {
             }
         } catch (error) {
             console.error("Error closing ticket:", error)
-            toast({
-                title: "Error",
-                description: "Failed to close ticket",
-                variant: "destructive"
-            })
+            toast.error("Failed to close ticket")
         }
     }
 

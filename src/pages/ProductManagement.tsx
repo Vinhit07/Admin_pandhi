@@ -16,11 +16,11 @@ import {
     DialogTitle,
     DialogFooter,
 } from "../components/ui/dialog"
-import { Edit, Trash2, Upload, Loader2 } from "lucide-react"
+import { Upload, Loader2 } from "lucide-react"
 import { ProductCard } from "../components/ProductCard"
 import { useOutlet } from "../context/OutletContext"
 import { productService } from "../services/productService"
-import { Product } from "../types/api"
+import type { Product } from "../types/api"
 import toast from "react-hot-toast"
 
 // Extended Product interface to include UI-specific fields if needed, 
@@ -64,17 +64,13 @@ export const ProductManagement = () => {
         if (!outletId) return
         try {
             setLoading(true)
-            const response = await productService.getProducts(parseInt(outletId))
+            const response = await productService.getProducts(outletId)
             if (response.success && response.data) {
                 setProducts(response.data)
             }
         } catch (error) {
             console.error("Failed to fetch products", error)
-            toast({
-                title: "Error",
-                description: "Failed to load products",
-                variant: "destructive"
-            })
+            toast.error("Failed to load products")
         } finally {
             setLoading(false)
         }
@@ -97,11 +93,7 @@ export const ProductManagement = () => {
 
     const handleAddProduct = async () => {
         if (!formData.name || !formData.price || !formData.category || !outletId) {
-            toast({
-                title: "Validation Error",
-                description: "Please fill in all required fields",
-                variant: "destructive"
-            })
+            toast.error("Please fill in all required fields")
             return
         }
 
@@ -112,25 +104,18 @@ export const ProductManagement = () => {
                 price: parseFloat(formData.price),
                 category: formData.category,
                 imageUrl: formData.imageUrl || "",
-                outletId: parseInt(outletId)
+                outletId: outletId
             })
 
             if (response.success && response.data) {
                 setProducts([...products, response.data])
                 setIsAddDialogOpen(false)
                 resetForm()
-                toast({
-                    title: "Success",
-                    description: "Product added successfully"
-                })
+                toast.success("Product added successfully")
             }
         } catch (error) {
             console.error("Error adding product:", error)
-            toast({
-                title: "Error",
-                description: "Failed to add product",
-                variant: "destructive"
-            })
+            toast.error("Failed to add product")
         }
     }
 
@@ -156,18 +141,11 @@ export const ProductManagement = () => {
                 setIsEditDialogOpen(false)
                 setEditingProduct(null)
                 resetForm()
-                toast({
-                    title: "Success",
-                    description: "Product updated successfully"
-                })
+                toast.success("Product updated successfully")
             }
         } catch (error) {
             console.error("Error updating product:", error)
-            toast({
-                title: "Error",
-                description: "Failed to update product",
-                variant: "destructive"
-            })
+            toast.error("Failed to update product")
         }
     }
 
@@ -178,18 +156,11 @@ export const ProductManagement = () => {
             const response = await productService.deleteProduct(id)
             if (response.success) {
                 setProducts(products.filter((p) => p.id !== id))
-                toast({
-                    title: "Success",
-                    description: "Product deleted successfully"
-                })
+                toast.success("Product deleted successfully")
             }
         } catch (error) {
             console.error("Error deleting product:", error)
-            toast({
-                title: "Error",
-                description: "Failed to delete product",
-                variant: "destructive"
-            })
+            toast.error("Failed to delete product")
         }
     }
 

@@ -65,9 +65,30 @@ export const apiRequest = async <T = any>(
         if (!response.ok) {
             // Auto-logout on 401 Unauthorized
             if (response.status === 401) {
-                localStorage.removeItem('token');
-                localStorage.removeItem('outletDetails');
-                window.location.href = '/admin-signin';
+                // Don't redirect on checkAuth failures - let AuthContext handle it
+                // This prevents infinite redirect loops during initial auth check
+                const isCheckAuthRequest = endpoint.includes('/check-auth') || endpoint.includes('/me');
+
+                if (!isCheckAuthRequest) {
+                    // For authenticated API requests that fail with 401
+                    // Prevent infinite redirect loop with throttling
+                    const lastRedirect = sessionStorage.getItem('last_401_redirect');
+                    const now = Date.now();
+
+                    // Only redirect if we haven't redirected in the last 5 seconds
+                    if (!lastRedirect || now - parseInt(lastRedirect) > 5000) {
+                        sessionStorage.setItem('last_401_redirect', now.toString());
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('outletDetails');
+                        window.location.href = '/admin-signin';
+                    }
+                } else {
+                    // For checkAuth requests, just clear tokens and throw
+                    // Don't redirect - let the AuthContext handle the logout
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('outletDetails');
+                }
+
                 throw new Error('Session expired. Please login again.');
             }
 

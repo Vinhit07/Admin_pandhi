@@ -1,18 +1,18 @@
 // Authentication Context (TypeScript)
 // Manages global authentication state with role-based access and outlet management
 
-import React, { createContext, useContext, useReducer, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, type ReactNode } from 'react';
 import { authService } from '../services/authService';
 import type { User, Outlet, Permission } from '../types/api';
 
 // Action types
-enum ActionType {
-    LOADING = 'LOADING',
-    LOGIN_SUCCESS = 'LOGIN_SUCCESS',
-    LOGOUT = 'LOGOUT',
-    ERROR = 'ERROR',
-    CLEAR_ERROR = 'CLEAR_ERROR',
-}
+const ActionType = {
+    LOADING: 'LOADING',
+    LOGIN_SUCCESS: 'LOGIN_SUCCESS',
+    LOGOUT: 'LOGOUT',
+    ERROR: 'ERROR',
+    CLEAR_ERROR: 'CLEAR_ERROR',
+} as const;
 
 interface AuthState {
     isAuthenticated: boolean;
@@ -24,11 +24,11 @@ interface AuthState {
 }
 
 type AuthAction =
-    | { type: ActionType.LOADING }
-    | { type: ActionType.LOGIN_SUCCESS; payload: { user: User; outlets: Outlet[]; permissions: Permission[] } }
-    | { type: ActionType.LOGOUT }
-    | { type: ActionType.ERROR; payload: string }
-    | { type: ActionType.CLEAR_ERROR };
+    | { type: typeof ActionType.LOADING }
+    | { type: typeof ActionType.LOGIN_SUCCESS; payload: { user: User; outlets: Outlet[]; permissions: Permission[] } }
+    | { type: typeof ActionType.LOGOUT }
+    | { type: typeof ActionType.ERROR; payload: string }
+    | { type: typeof ActionType.CLEAR_ERROR };
 
 interface AuthContextValue extends AuthState {
     adminSignIn: (credentials: { email: string; password: string }) => Promise<void>;
@@ -114,7 +114,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Check auth status on mount
     useEffect(() => {
-        checkAuthStatus();
+        const token = localStorage.getItem('token');
+        if (token) {
+            // Token exists - verify it with backend
+            checkAuthStatus();
+        } else {
+            // No token - immediately set to logged out (no API call needed)
+            console.log('No token found - setting to logged out state');
+            dispatch({ type: ActionType.LOGOUT });
+        }
     }, []);
 
     // Check authentication status
@@ -131,9 +139,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
                 dispatch({ type: ActionType.LOGIN_SUCCESS, payload: userData });
             } else {
+                // No user data returned - clear any stale tokens and logout
+                localStorage.removeItem('token');
+                localStorage.removeItem('outletDetails');
                 dispatch({ type: ActionType.LOGOUT });
             }
         } catch (error) {
+            // Auth check failed - likely invalid/expired token
+            // Clear tokens silently and show login page
+            console.log('Authentication check failed - clearing session');
+            localStorage.removeItem('token');
+            localStorage.removeItem('outletDetails');
+            sessionStorage.removeItem('last_401_redirect');
             dispatch({ type: ActionType.LOGOUT });
         }
     };

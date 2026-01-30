@@ -21,10 +21,11 @@ const AdminSignIn: React.FC = () => {
 
     // Redirect if already authenticated
     useEffect(() => {
-        if (isAuthenticated) {
+        // Only redirect if auth check is complete (not loading) and user is authenticated
+        if (!loading && isAuthenticated) {
             navigate(ROUTES.DASHBOARD, { replace: true });
         }
-    }, [isAuthenticated, navigate]);
+    }, [isAuthenticated, loading, navigate]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -117,8 +118,8 @@ const AdminSignIn: React.FC = () => {
                                     type="button"
                                     onClick={() => handleUserTypeChange('admin')}
                                     className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center gap-2 ${userType === 'admin'
-                                            ? 'bg-primary text-primary-foreground shadow-sm'
-                                            : 'text-muted-foreground hover:text-foreground'
+                                        ? 'bg-primary text-primary-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground'
                                         }`}
                                 >
                                     <User className="h-4 w-4" />
@@ -128,8 +129,8 @@ const AdminSignIn: React.FC = () => {
                                     type="button"
                                     onClick={() => handleUserTypeChange('superadmin')}
                                     className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center gap-2 ${userType === 'superadmin'
-                                            ? 'bg-primary text-primary-foreground shadow-sm'
-                                            : 'text-muted-foreground hover:text-foreground'
+                                        ? 'bg-primary text-primary-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground'
                                         }`}
                                 >
                                     <Shield className="h-4 w-4" />

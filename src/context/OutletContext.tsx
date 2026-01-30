@@ -4,6 +4,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import { apiRequest } from '../lib/api'
 import { API_ENDPOINTS } from '../lib/constants'
+import { useAuth } from './AuthContext'
 
 interface Outlet {
     id: number
@@ -22,13 +23,22 @@ interface OutletContextType {
 const OutletContext = createContext<OutletContextType | undefined>(undefined)
 
 export const OutletProvider = ({ children }: { children: ReactNode }) => {
+    const { isAuthenticated } = useAuth()
     const [outlets, setOutlets] = useState<Outlet[]>([])
     const [selectedOutlet, setSelectedOutlet] = useState<Outlet | null>(null)
     const [loading, setLoading] = useState(true)
 
+    // Only fetch outlets when authenticated
     useEffect(() => {
-        fetchOutlets()
-    }, [])
+        if (isAuthenticated) {
+            fetchOutlets()
+        } else {
+            // Not authenticated - clear outlets
+            setOutlets([])
+            setSelectedOutlet(null)
+            setLoading(false)
+        }
+    }, [isAuthenticated])
 
     const fetchOutlets = async () => {
         try {
