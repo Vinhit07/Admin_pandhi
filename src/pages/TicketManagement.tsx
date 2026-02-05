@@ -31,7 +31,7 @@ export const TicketManagement = () => {
     const [statusFilter, setStatusFilter] = useState("all")
 
     const [tickets, setTickets] = useState<Ticket[]>([])
-    const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(false)
 
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
     const [isViewModalOpen, setIsViewModalOpen] = useState(false)
@@ -40,7 +40,10 @@ export const TicketManagement = () => {
 
     useEffect(() => {
         if (outletId) {
+            setLoading(true)
             fetchTickets()
+        } else {
+            setLoading(false)
         }
     }, [outletId])
 

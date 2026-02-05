@@ -42,11 +42,14 @@ export const OrderManagement = () => {
     const [searchQuery, setSearchQuery] = useState("")
     const [statusFilter, setStatusFilter] = useState("all")
     const [orders, setOrders] = useState<Order[]>([])
-    const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(false)
 
     useEffect(() => {
         if (outletId) {
+            setLoading(true)
             fetchOrders()
+        } else {
+            setLoading(false)
         }
     }, [outletId])
 

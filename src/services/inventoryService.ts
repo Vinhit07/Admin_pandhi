@@ -47,8 +47,9 @@ export const inventoryService = {
      * @returns Stock transaction history
      */
     getStockHistory: async (outletId: number): Promise<ApiResponse<any>> => {
-        return await apiRequest<ApiResponse<any>>(`${API_ENDPOINTS.STOCK_HISTORY}/${outletId}`, {
-            method: 'GET',
+        return await apiRequest<ApiResponse<any>>(API_ENDPOINTS.STOCK_HISTORY, {
+            method: 'POST',
+            body: { outletId }
         });
     },
 };

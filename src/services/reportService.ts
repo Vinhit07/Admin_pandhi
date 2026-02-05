@@ -15,11 +15,13 @@ import type {
 export const reportService = {
     /**
      * Get dashboard overview statistics
+     * @param params - Optional date range parameters
      * @returns Dashboard overview data
      */
-    getDashboardOverview: async (): Promise<ApiResponse<DashboardOverview>> => {
+    getDashboardOverview: async (params?: any): Promise<ApiResponse<DashboardOverview>> => {
         return await apiRequest<ApiResponse<DashboardOverview>>(API_ENDPOINTS.DASHBOARD_OVERVIEW, {
-            method: 'GET',
+            method: 'POST',
+            body: params || {},
         });
     },
 

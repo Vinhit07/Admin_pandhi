@@ -39,14 +39,17 @@ export const InventoryManagement = () => {
     const [stockData, setStockData] = useState<StockItem[]>([])
     const [historyData, setHistoryData] = useState<StockHistory[]>([])
 
-    const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(false)
 
     const [fromDate, setFromDate] = useState("15-01-2026")
     const [toDate, setToDate] = useState("26-01-2026")
 
     useEffect(() => {
         if (outletId) {
+            setLoading(true) // Start loading only when outletId is present
             fetchData()
+        } else {
+            setLoading(false)
         }
     }, [outletId])
 

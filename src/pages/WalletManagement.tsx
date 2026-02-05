@@ -43,11 +43,14 @@ export const WalletManagement = () => {
     const [walletData, setWalletData] = useState<WalletSummary[]>([])
     const [rechargeData, setRechargeData] = useState<RechargeHistory[]>([])
     const [paidOrdersData, setPaidOrdersData] = useState<PaidOrder[]>([])
-    const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(false)
 
     useEffect(() => {
         if (outletId) {
+            setLoading(true)
             fetchData()
+        } else {
+            setLoading(false)
         }
     }, [outletId])
 

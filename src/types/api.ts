@@ -336,6 +336,24 @@ export interface AnalyticsParams {
     interval?: 'day' | 'week' | 'month';
 }
 
+export interface OrderStatusDistribution {
+    delivered: number;
+    pending: number;
+    cancelled: number;
+    partiallyDelivered: number;
+}
+
+export interface OrderSourceDistribution {
+    appOrders: number;
+    manualOrders: number;
+}
+
+export interface PeakTimeSlot {
+    timeSlot: string;
+    displayName: string;
+    orderCount: number;
+}
+
 // ============================================================================
 // Coupon Types
 // ============================================================================

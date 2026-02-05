@@ -25,7 +25,7 @@ export const ExpenditureManagement = () => {
     const [toDate, setToDate] = useState("")
 
     const [expenses, setExpenses] = useState<Expense[]>([])
-    const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(false)
 
     // Stats from dashboard
     const [stats, setStats] = useState({
@@ -44,7 +44,10 @@ export const ExpenditureManagement = () => {
 
     useEffect(() => {
         if (outletId) {
+            setLoading(true)
             fetchData()
+        } else {
+            setLoading(false)
         }
     }, [outletId])
 

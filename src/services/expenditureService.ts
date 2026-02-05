@@ -12,7 +12,7 @@ export const expenditureService = {
      * @returns List of expenses
      */
     getExpenses: async (outletId: number): Promise<ApiResponse<any>> => {
-        return await apiRequest<ApiResponse<any>>(`${API_ENDPOINTS.GET_EXPENSES}/${outletId}`, {
+        return await apiRequest<ApiResponse<any>>(`${API_ENDPOINTS.GET_EXPENSES}/${outletId}/`, {
             method: 'GET',
         });
     },
