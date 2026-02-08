@@ -60,6 +60,7 @@ export const apiRequest = async <T = any>(
         }
 
         const data = await response.json();
+        console.log(`🌐 API Response from ${endpoint}:`, { status: response.status, data });
 
         // Handle HTTP errors
         if (!response.ok) {

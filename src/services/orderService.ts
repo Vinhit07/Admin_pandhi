@@ -11,7 +11,7 @@ export const orderService = {
      * @param outletId - Outlet ID
      * @returns List of orders
      */
-    getOrders: async (outletId: number): Promise<ApiResponse<any>> => {
+    getOrders: async (outletId: number | string): Promise<ApiResponse<any>> => {
         return await apiRequest<ApiResponse<any>>(API_ENDPOINTS.GET_ORDERS.replace(':outletId', outletId.toString()), {
             method: 'GET',
         });

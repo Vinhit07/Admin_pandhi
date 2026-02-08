@@ -79,18 +79,18 @@ export const ProductCard = ({ product, onEdit, onRemove }: ProductCardProps) => 
                 <div className="space-y-1.5">
                     <div className="flex justify-between text-xs">
                         <span className="text-muted-foreground">Stock</span>
-                        <span className={`font-medium ${product.stock > 50 ? "text-green-600" :
-                            product.stock > 10 ? "text-yellow-600" : "text-red-600"
+                        <span className={`font-medium ${product.inventory.quantity > 50 ? "text-green-600" :
+                            product.inventory.quantity > 10 ? "text-yellow-600" : "text-red-600"
                             }`}>
-                            {product.stock} units
+                            {product.inventory.quantity} units
                         </span>
                     </div>
                     <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                         <div
-                            className={`h-full rounded-full transition-all ${product.stock > 50 ? "bg-green-500" :
-                                product.stock > 10 ? "bg-yellow-500" : "bg-red-500"
+                            className={`h-full rounded-full transition-all ${product.inventory.quantity > 50 ? "bg-green-500" :
+                                product.inventory.quantity > 10 ? "bg-yellow-500" : "bg-red-500"
                                 }`}
-                            style={{ width: `${Math.min(product.stock, 100)}%` }}
+                            style={{ width: `${Math.min(product.inventory.quantity, 100)}%` }}
                         />
                     </div>
                 </div>

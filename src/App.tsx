@@ -1,6 +1,7 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './App.css'
-import { Layout } from './components/Layout'
+import { MainLayout } from './components/MainLayout'
+import { AdminLayout } from './components/AdminLayout'
 import { Home } from './pages/Home'
 import { OrderManagement } from './pages/OrderManagement'
 import { StaffManagement } from './pages/StaffManagement'
@@ -14,6 +15,9 @@ import { NotificationsManagement } from './pages/NotificationsManagement'
 import { ProductManagement } from './pages/ProductManagement'
 import { AppManagement } from './pages/AppManagement'
 import { ReportsAnalytics } from './pages/ReportsAnalytics'
+import { OutletManagement } from './pages/OutletManagement'
+import { Onboarding } from './pages/Onboarding'
+import { AdminManagement } from './pages/AdminManagement'
 import AdminSignIn from './pages/auth/AdminSignIn'
 import AdminSignUp from './pages/auth/AdminSignUp'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -30,20 +34,30 @@ function App() {
           <Route path="/admin-signup" element={<AdminSignUp />} />
 
           {/* Protected Routes */}
-          <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-            <Route index element={<Home />} />
-            <Route path="order-management" element={<OrderManagement />} />
-            <Route path="staff-management" element={<StaffManagement />} />
-            <Route path="staff-management/:staffId" element={<StaffDetail />} />
-            <Route path="inventory-management" element={<InventoryManagement />} />
-            <Route path="expenditure-management" element={<ExpenditureManagement />} />
-            <Route path="wallet-management" element={<WalletManagement />} />
-            <Route path="customer-management" element={<CustomerManagement />} />
-            <Route path="ticket-management" element={<TicketManagement />} />
-            <Route path="notifications-management" element={<NotificationsManagement />} />
-            <Route path="product-management" element={<ProductManagement />} />
-            <Route path="app-management" element={<AppManagement />} />
-            <Route path="reports-analytics" element={<ReportsAnalytics />} />
+          <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+
+            {/* Admin Tab Routes */}
+            <Route element={<AdminLayout />}>
+              <Route index element={<Home />} />
+              <Route path="order-management" element={<OrderManagement />} />
+              <Route path="staff-management" element={<StaffManagement />} />
+              <Route path="staff-management/:staffId" element={<StaffDetail />} />
+              <Route path="inventory-management" element={<InventoryManagement />} />
+              <Route path="expenditure-management" element={<ExpenditureManagement />} />
+              <Route path="wallet-management" element={<WalletManagement />} />
+              <Route path="customer-management" element={<CustomerManagement />} />
+              <Route path="ticket-management" element={<TicketManagement />} />
+              <Route path="notifications-management" element={<NotificationsManagement />} />
+              <Route path="product-management" element={<ProductManagement />} />
+              <Route path="app-management" element={<AppManagement />} />
+              <Route path="reports-analytics" element={<ReportsAnalytics />} />
+            </Route>
+
+            {/* Other Tab Routes */}
+            <Route path="outlets" element={<OutletManagement />} />
+            <Route path="onboarding" element={<Onboarding />} />
+            <Route path="admin-management" element={<AdminManagement />} />
+
           </Route>
         </Routes>
       </OutletProvider>

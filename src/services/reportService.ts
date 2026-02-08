@@ -91,7 +91,7 @@ export const reportService = {
      * @param params - Analytics parameters
      * @returns Sales report data
      */
-    getSalesReport: async (outletId: number, params: AnalyticsParams): Promise<ApiResponse<any>> => {
+    getSalesReport: async (outletId: number | string, params: AnalyticsParams): Promise<ApiResponse<any>> => {
         return await apiRequest<ApiResponse<any>>(`${API_ENDPOINTS.SALES_REPORT}/${outletId}/`, {
             method: 'POST',
             body: params,
@@ -104,7 +104,7 @@ export const reportService = {
      * @param params - Analytics parameters
      * @returns Customer overview data
      */
-    getCustomerOverview: async (outletId: number, params: AnalyticsParams): Promise<ApiResponse<any>> => {
+    getCustomerOverview: async (outletId: number | string, params: AnalyticsParams): Promise<ApiResponse<any>> => {
         return await apiRequest<ApiResponse<any>>(`${API_ENDPOINTS.CUSTOMER_OVERVIEW}/${outletId}/`, {
             method: 'POST',
             body: params,
@@ -117,7 +117,7 @@ export const reportService = {
      * @param params - Analytics parameters
      * @returns Revenue split data
      */
-    getRevenueSplit: async (outletId: number, params: AnalyticsParams): Promise<ApiResponse<any>> => {
+    getRevenueSplit: async (outletId: number | string, params: AnalyticsParams): Promise<ApiResponse<any>> => {
         return await apiRequest<ApiResponse<any>>(`${API_ENDPOINTS.REVENUE_SPLIT}/${outletId}/`, {
             method: 'POST',
             body: params,
@@ -130,7 +130,7 @@ export const reportService = {
      * @param params - Analytics parameters
      * @returns Profit/loss trends data
      */
-    getProfitLossTrends: async (outletId: number, params: AnalyticsParams): Promise<ApiResponse<any>> => {
+    getProfitLossTrends: async (outletId: number | string, params: AnalyticsParams): Promise<ApiResponse<any>> => {
         return await apiRequest<ApiResponse<any>>(`${API_ENDPOINTS.PROFIT_LOSS_TRENDS}/${outletId}/`, {
             method: 'POST',
             body: params,

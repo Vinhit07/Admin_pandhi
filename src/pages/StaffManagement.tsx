@@ -33,9 +33,26 @@ export const StaffManagement = () => {
         try {
             setLoading(true)
             const response = await staffService.getStaffs(outletId)
-            setStaffList(response.data || [])
+            console.log("👥 Staff Response:", response)
+
+            // FIX: Check if data exists and is an array
+            if (response.success && Array.isArray(response.data)) {
+                // Transform the nested API data into the flat structure the UI expects
+                const formattedStaff: Staff[] = response.data.map((item: any) => ({
+                    id: item.id,                          // Staff ID (outer ID)
+                    name: item.user?.name || 'Unknown',   // Get name from nested user object
+                    email: item.user?.email || 'N/A',     // Get email from nested user object
+                    phone: item.user?.phone || '',        // Get phone from nested user object
+                    position: item.staffRole || 'Staff'   // Map staffRole to position
+                }))
+
+                setStaffList(formattedStaff)
+            } else {
+                setStaffList([])
+            }
         } catch (error) {
             console.error('Error fetching staff:', error)
+            setStaffList([])
         } finally {
             setLoading(false)
         }
@@ -91,7 +108,7 @@ export const StaffManagement = () => {
 
                                 <div className="flex items-center gap-2">
                                     <Mail size={16} className="text-muted-foreground" />
-                                    <span className="text-sm text-muted-foreground">{staff.email}</span>
+                                    <span className="text-sm text-muted-foreground truncate">{staff.email}</span>
                                 </div>
 
                                 {staff.phone && (

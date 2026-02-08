@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react"
+import { useAuth } from "../context/AuthContext"
+import { useOutlet } from "../context/OutletContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card"
 import { reportService } from "../services"
 import { Loader2, Calendar } from "lucide-react"
@@ -20,6 +22,7 @@ import {
 import type { AnalyticsParams } from "../types/api"
 
 export const Home = () => {
+    const { outletId } = useOutlet()
     const [loading, setLoading] = useState(true)
     const [dashboardData, setDashboardData] = useState<any>(null)
     const [dateRange, setDateRange] = useState({
@@ -35,28 +38,35 @@ export const Home = () => {
     const [peakTimeSlots, setPeakTimeSlots] = useState<any[]>([])
 
     useEffect(() => {
+        // Wait for outletId to be initialized (it might be null briefly)
+        if (outletId === null) return;
+
         fetchAllData()
-    }, [dateRange])
+    }, [dateRange, outletId])
 
     const fetchAllData = async () => {
         try {
             setLoading(true)
             // Backend expects 'from' and 'to', not 'startDate' and 'endDate'
-            const params = {
+            const params: any = {
                 from: dateRange.from,
                 to: dateRange.to
+            }
+
+            if (outletId !== 'ALL') {
+                params.outletId = Number(outletId);
             }
 
             console.log('📊 Fetching dashboard data with params:', params)
 
             // Fetch all analytics data
             const [overview, revenue, orderStatus, orderSource, topItems, peakSlots] = await Promise.all([
-                reportService.getDashboardOverview(params as any),
-                reportService.getRevenueTrend(params as any),
-                reportService.getOrderStatusDistribution(params as any),
-                reportService.getOrderSourceDistribution(params as any),
-                reportService.getTopSellingItems(params as any),
-                reportService.getPeakTimeSlots(params as any)
+                reportService.getDashboardOverview(params),
+                reportService.getRevenueTrend(params),
+                reportService.getOrderStatusDistribution(params),
+                reportService.getOrderSourceDistribution(params),
+                reportService.getTopSellingItems(params),
+                reportService.getPeakTimeSlots(params)
             ])
 
             console.log('📈 API Responses received:')
@@ -176,14 +186,21 @@ export const Home = () => {
                 </Card>
             </div>
 
-            {/* Date Range Filter */}
+            {/* Date Range and Outlet Filter */}
             <Card>
                 <CardHeader>
                     <div className="flex items-center justify-between flex-wrap gap-4">
-                        <div className="flex items-center gap-2">
-                            <Calendar className="w-5 h-5 text-muted-foreground" />
-                            <span className="font-semibold">Date Range:</span>
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <Calendar className="w-5 h-5 text-muted-foreground" />
+                                <span className="font-semibold">Date Range:</span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                {/* Global filter is now in TopNav */}
+                            </div>
                         </div>
+
                         <div className="flex items-center gap-3 flex-wrap">
                             <div className="flex gap-2">
                                 <button
@@ -233,7 +250,7 @@ export const Home = () => {
                 </CardHeader>
                 <CardContent>
                     {revenueTrend.length > 0 ? (
-                        <div className="h-80 w-full">
+                        <div className="h-[300px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={revenueTrend} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -263,7 +280,7 @@ export const Home = () => {
                     </CardHeader>
                     <CardContent>
                         {getOrderStatusPieData().length > 0 ? (
-                            <div className="h-80 w-full">
+                            <div className="h-[300px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie
@@ -301,7 +318,7 @@ export const Home = () => {
                     </CardHeader>
                     <CardContent>
                         {getOrderSourcePieData().length > 0 ? (
-                            <div className="h-80 w-full">
+                            <div className="h-[300px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie
@@ -339,7 +356,7 @@ export const Home = () => {
                     </CardHeader>
                     <CardContent>
                         {topSellingItems.length > 0 ? (
-                            <div className="h-80 w-full">
+                            <div className="h-[300px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={topSellingItems} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -374,7 +391,7 @@ export const Home = () => {
                     </CardHeader>
                     <CardContent>
                         {peakTimeSlots.length > 0 ? (
-                            <div className="h-80 w-full">
+                            <div className="h-[300px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={peakTimeSlots} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />

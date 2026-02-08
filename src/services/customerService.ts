@@ -11,7 +11,7 @@ export const customerService = {
      * @param outletId - Outlet ID
      * @returns List of customers
      */
-    getCustomers: async (outletId: number): Promise<ApiResponse<Customer[]>> => {
+    getCustomers: async (outletId: number | string): Promise<ApiResponse<Customer[]>> => {
         return await apiRequest<ApiResponse<Customer[]>>(`${API_ENDPOINTS.GET_CUSTOMERS}/${outletId}/`, {
             method: 'GET',
         });

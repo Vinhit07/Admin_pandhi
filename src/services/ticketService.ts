@@ -11,7 +11,7 @@ export const ticketService = {
      * @param outletId - Outlet ID
      * @returns List of tickets
      */
-    getTickets: async (outletId: number): Promise<ApiResponse<any>> => {
+    getTickets: async (outletId: number | string): Promise<ApiResponse<any>> => {
         return await apiRequest<ApiResponse<any>>(`${API_ENDPOINTS.GET_TICKETS}/${outletId}`, {
             method: 'GET',
         });

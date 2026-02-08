@@ -11,7 +11,7 @@ export const inventoryService = {
      * @param outletId - Outlet ID
      * @returns Stock data
      */
-    getStocks: async (outletId: number): Promise<ApiResponse<any>> => {
+    getStocks: async (outletId: number | string): Promise<ApiResponse<any>> => {
         return await apiRequest<ApiResponse<any>>(`${API_ENDPOINTS.GET_STOCKS}/${outletId}`, {
             method: 'GET',
         });
@@ -44,12 +44,24 @@ export const inventoryService = {
     /**
      * Get stock history
      * @param outletId - Outlet ID
+     * @param startDate - Start date for history (optional)
+     * @param endDate - End date for history (optional)
      * @returns Stock transaction history
      */
-    getStockHistory: async (outletId: number): Promise<ApiResponse<any>> => {
+    getStockHistory: async (outletId: number | string, startDate?: Date, endDate?: Date): Promise<ApiResponse<any>> => {
+        // Format dates for API
+        const idToSend = outletId === 'ALL' ? 0 : Number(outletId);
+        const body: any = { outletId: idToSend }
+        if (startDate) {
+            body.startDate = startDate.toISOString().split('T')[0] // YYYY-MM-DD
+        }
+        if (endDate) {
+            body.endDate = endDate.toISOString().split('T')[0] // YYYY-MM-DD
+        }
+
         return await apiRequest<ApiResponse<any>>(API_ENDPOINTS.STOCK_HISTORY, {
             method: 'POST',
-            body: { outletId }
+            body
         });
     },
 };

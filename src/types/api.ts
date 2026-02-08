@@ -50,6 +50,8 @@ export interface AuthResponse {
     message?: string;
     token?: string;
     user?: User;
+    admin?: any; // For backend response compatibility
+    superadmin?: any; // For backend response compatibility
 }
 
 // ============================================================================
@@ -126,15 +128,28 @@ export interface Product {
     outletId: number;
     createdAt?: string;
     updatedAt?: string;
+    // New fields
+    isVeg?: boolean;
+    companyPaid?: boolean;
+    inventory?: {
+        quantity: number;
+        threshold: number;
+        minValue: number;
+    };
 }
 
 export interface ProductCreateRequest {
     name: string;
     description?: string;
     price: number;
-    category?: string;
+    category: string;
     imageUrl?: string;
     outletId: number;
+    // Optional fields with backend defaults
+    threshold?: number;      // Default: 10
+    minValue?: number;       // Default: 0
+    isVeg?: boolean;         // Default: true
+    companyPaid?: boolean;   // Default: false
 }
 
 export interface ProductUpdateRequest {
@@ -144,6 +159,11 @@ export interface ProductUpdateRequest {
     category?: string;
     imageUrl?: string;
     isAvailable?: boolean;
+    outletId?: number;
+    threshold?: number;
+    minValue?: number;
+    isVeg?: boolean;
+    companyPaid?: boolean;
 }
 
 // ============================================================================
@@ -293,8 +313,11 @@ export interface NotificationRequest {
     message: string;
     targetAudience: 'ALL' | 'SPECIFIC';
     targetUserIds?: number[];
-    scheduledFor?: string;
+    scheduledDate: string;
+    scheduledTime: string;
     outletId: number;
+    imageUrl?: string;
+    priority?: string;
 }
 
 // ============================================================================
@@ -331,8 +354,9 @@ export interface TopSellingItem {
 }
 
 export interface AnalyticsParams {
-    startDate: string;
-    endDate: string;
+    from?: string;
+    to?: string;
+    year?: number;
     interval?: 'day' | 'week' | 'month';
 }
 

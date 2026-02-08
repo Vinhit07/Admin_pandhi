@@ -130,11 +130,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         dispatch({ type: ActionType.LOADING });
         try {
             const response = await authService.checkAuth();
-            if (response && response.user) {
+            if (response && (response.user || response.admin || response.superadmin)) {
+
+                const user = response.user || response.admin || response.superadmin;
+
                 const userData = {
-                    user: response.user,
-                    outlets: response.user.adminDetails?.outlets || [],
-                    permissions: response.user.adminDetails?.permissions || [],
+                    user: user,
+                    outlets: user.adminDetails?.outlets || user.outlets || [],
+                    permissions: user.adminDetails?.permissions || user.permissions || [],
                 };
 
                 dispatch({ type: ActionType.LOGIN_SUCCESS, payload: userData });
@@ -162,14 +165,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const response = await authService.adminSignIn(credentials);
             console.log('Admin SignIn success:', response);
 
-            if (!response.user) {
+            const user = response.user || response.admin;
+
+            if (!user) {
                 throw new Error('Invalid response from server');
             }
 
+            // Normalize data extraction based on response structure
+            const outlets = user.outlets || user.adminDetails?.outlets || [];
+            const permissions = user.permissions || user.adminDetails?.permissions || [];
+
             const loginData = {
-                user: response.user,
-                outlets: response.user.adminDetails?.outlets || [],
-                permissions: response.user.adminDetails?.permissions || [],
+                user: user,
+                outlets: outlets,
+                permissions: permissions,
             };
 
             dispatch({ type: ActionType.LOGIN_SUCCESS, payload: loginData });

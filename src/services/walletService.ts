@@ -33,11 +33,9 @@ export const walletService = {
      * @param outletId - Outlet ID
      * @returns Orders paid with wallet
      */
-    getOrdersPaidViaWallet: async (outletId: number): Promise<ApiResponse<any>> => {
-        // Backend expects GET request for this endpoint
-        // It returns ALL orders paid via wallet (global), logic might need update if outlet filtering is strictly required by backend,
-        // but for now matching the route definition.
-        return await apiRequest<ApiResponse<any>>(API_ENDPOINTS.GET_ORDERS_PAID_VIA_WALLET, {
+    getOrdersPaidViaWallet: async (outletId: number | string): Promise<ApiResponse<any>> => {
+        // Backend now supports outlet filtering via path param
+        return await apiRequest<ApiResponse<any>>(`${API_ENDPOINTS.GET_ORDERS_PAID_VIA_WALLET}/${outletId}`, {
             method: 'GET',
         });
     },
