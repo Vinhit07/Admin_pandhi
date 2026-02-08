@@ -11,7 +11,7 @@ export const expenditureService = {
      * @param outletId - Outlet ID
      * @returns List of expenses
      */
-    getExpenses: async (outletId: number): Promise<ApiResponse<any>> => {
+    getExpenses: async (outletId: number | string): Promise<ApiResponse<any>> => {
         return await apiRequest<ApiResponse<any>>(`${API_ENDPOINTS.GET_EXPENSES}/${outletId}/`, {
             method: 'GET',
         });
@@ -35,10 +35,11 @@ export const expenditureService = {
      * @param date - Date to fetch expenses for
      * @returns Expenses for the date
      */
-    getExpensesByDate: async (outletId: number, date: string): Promise<ApiResponse<any>> => {
+    getExpensesByDate: async (outletId: number | string, date: string): Promise<ApiResponse<any>> => {
+        const idToSend = outletId === 'ALL' ? 0 : Number(outletId);
         return await apiRequest<ApiResponse<any>>(API_ENDPOINTS.GET_EXPENSES_BY_DATE, {
             method: 'POST',
-            body: { outletId, date },
+            body: { outletId: idToSend, date },
         });
     },
 };

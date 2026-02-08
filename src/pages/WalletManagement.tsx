@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { formatDate } from "../lib/dateUtils"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
@@ -38,12 +39,13 @@ interface PaidOrder {
 
 export const WalletManagement = () => {
     const { outletId } = useOutlet()
-
+    console.log("Rendered WalletManagement. outletId:", outletId) // DEBUG
     const [searchQuery, setSearchQuery] = useState("")
     const [walletData, setWalletData] = useState<WalletSummary[]>([])
     const [rechargeData, setRechargeData] = useState<RechargeHistory[]>([])
     const [paidOrdersData, setPaidOrdersData] = useState<PaidOrder[]>([])
     const [loading, setLoading] = useState(false)
+    const [activeTab, setActiveTab] = useState("summary")
 
     useEffect(() => {
         if (outletId) {
@@ -60,10 +62,14 @@ export const WalletManagement = () => {
         try {
             setLoading(true)
             const [walletRes, rechargeRes, ordersRes] = await Promise.all([
-                walletService.getWalletHistory(outletId), // Note: Verify endpoint mapping 
-                walletService.getRechargeHistory(outletId),
+                walletService.getWalletHistory(typeof outletId === 'string' && outletId !== 'ALL' ? parseInt(outletId) : outletId === 'ALL' ? 0 : outletId),
+                walletService.getRechargeHistory(typeof outletId === 'string' && outletId !== 'ALL' ? parseInt(outletId) : outletId === 'ALL' ? 0 : outletId),
                 walletService.getOrdersPaidViaWallet(outletId)
             ])
+            console.log("Wallet Data Response:", walletRes)
+            console.log("Recharge Data Response:", rechargeRes)
+            console.log("Orders Data Response:", ordersRes)
+
             setWalletData(walletRes.data || [])
             setRechargeData(rechargeRes.data || [])
             setPaidOrdersData(ordersRes.data || [])
@@ -89,14 +95,14 @@ export const WalletManagement = () => {
             ),
         },
         {
-            accessorKey: "customerName",
+            accessorKey: "name",
             header: "CUSTOMER NAME",
         },
         {
-            accessorKey: "walletBalance",
+            accessorKey: "balance",
             header: "WALLET BALANCE",
             cell: ({ row }) => (
-                <span className="font-semibold">{row.getValue("walletBalance")}</span>
+                <span className="font-semibold">{row.getValue("balance")}</span>
             ),
         },
         {
@@ -108,12 +114,18 @@ export const WalletManagement = () => {
             header: "TOTAL USED",
         },
         {
-            accessorKey: "lastRecharge",
+            accessorKey: "lastRecharged",
             header: "LAST RECHARGE",
+            cell: ({ row }) => (
+                <span className="font-semibold">{formatDate(row.getValue("lastRecharged"))}</span>
+            ),
         },
         {
             accessorKey: "lastOrder",
             header: "LAST ORDER",
+            cell: ({ row }) => (
+                <span className="font-semibold">{formatDate(row.getValue("lastOrder"))}</span>
+            ),
         },
     ]
 
@@ -140,9 +152,12 @@ export const WalletManagement = () => {
         {
             accessorKey: "date",
             header: "DATE",
+            cell: ({ row }) => (
+                <span className="font-semibold">{formatDate(row.getValue("date"))}</span>
+            ),
         },
         {
-            accessorKey: "paymentMethod",
+            accessorKey: "method",
             header: "PAYMENT METHOD",
         },
         {
@@ -176,39 +191,42 @@ export const WalletManagement = () => {
             header: "CUSTOMER NAME",
         },
         {
-            accessorKey: "amount",
+            accessorKey: "orderTotal",
             header: "AMOUNT",
             cell: ({ row }) => (
-                <span className="font-semibold">{row.getValue("amount")}</span>
+                <span className="font-semibold">{row.getValue("orderTotal")}</span>
             ),
         },
         {
-            accessorKey: "date",
+            accessorKey: "orderDate",
             header: "DATE",
+            cell: ({ row }) => (
+                <span className="font-semibold">{new Date(row.getValue("orderDate")).toLocaleDateString()}</span>
+            ),
         },
         {
             accessorKey: "paymentStatus",
             header: "PAYMENT STATUS",
-            cell: ({ row }) => (
+            cell: () => (
                 <Badge variant="default" className="bg-green-100 text-green-800 hover:bg-green-100">
-                    {row.getValue("paymentStatus")}
+                    Completed
                 </Badge>
             ),
         },
     ]
 
     const filteredWalletData = walletData.filter(wallet =>
-        wallet.walletId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        String(wallet.walletId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         wallet.customerName.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
     const filteredRechargeData = rechargeData.filter(recharge =>
-        recharge.rechargeId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        String(recharge.rechargeId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         recharge.customerName.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
     const filteredPaidOrders = paidOrdersData.filter(order =>
-        order.orderId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        String(order.orderId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         order.customerName.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
@@ -224,7 +242,7 @@ export const WalletManagement = () => {
         <div className="space-y-6">
             {/* Tabs Container */}
             <div className="bg-sidebar border-2 border-sidebar-border rounded-3xl p-6 shadow-lg">
-                <Tabs defaultValue="summary" className="w-full">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="grid w-full max-w-lg grid-cols-3 mb-6">
                         <TabsTrigger value="summary">Wallet Summary</TabsTrigger>
                         <TabsTrigger value="history">Recharge History</TabsTrigger>

@@ -6,7 +6,7 @@ import { apiRequest } from '../lib/api'
 import { API_ENDPOINTS } from '../lib/constants'
 import { useAuth } from './AuthContext'
 
-interface Outlet {
+export interface Outlet {
     id: number
     name: string
     location?: string
@@ -15,62 +15,112 @@ interface Outlet {
 interface OutletContextType {
     outlets: Outlet[]
     selectedOutlet: Outlet | null
-    outletId: number | null
-    selectOutlet: (outletId: number) => void
+    outletId: number | 'ALL' | null
+    selectOutlet: (outletId: number | 'ALL') => void
     loading: boolean
 }
 
 const OutletContext = createContext<OutletContextType | undefined>(undefined)
 
 export const OutletProvider = ({ children }: { children: ReactNode }) => {
-    const { isAuthenticated } = useAuth()
+    const { user, isAuthenticated } = useAuth()
     const [outlets, setOutlets] = useState<Outlet[]>([])
     const [selectedOutlet, setSelectedOutlet] = useState<Outlet | null>(null)
+    const [selectedOutletId, setSelectedOutletId] = useState<number | 'ALL' | null>(null)
     const [loading, setLoading] = useState(true)
 
-    // Only fetch outlets when authenticated
+    // Effect to initialize outlets based on user role
     useEffect(() => {
-        if (isAuthenticated) {
-            fetchOutlets()
-        } else {
-            // Not authenticated - clear outlets
-            setOutlets([])
-            setSelectedOutlet(null)
-            setLoading(false)
-        }
-    }, [isAuthenticated])
-
-    const fetchOutlets = async () => {
-        try {
-            setLoading(true)
-            const response = await apiRequest(API_ENDPOINTS.GET_OUTLETS, {
-                method: 'GET',
-            })
-            const outletList = response.data || []
-            setOutlets(outletList)
-
-            // Auto-select first outlet
-            if (outletList.length > 0) {
-                setSelectedOutlet(outletList[0])
+        const initializeOutlets = async () => {
+            if (!isAuthenticated || !user) {
+                setOutlets([])
+                setSelectedOutlet(null)
+                setSelectedOutletId(null)
+                setLoading(false)
+                return
             }
-        } catch (error) {
-            console.error('Error fetching outlets:', error)
-        } finally {
-            setLoading(false)
-        }
-    }
 
-    const selectOutlet = (outletId: number) => {
-        const outlet = outlets.find(o => o.id === outletId)
-        if (outlet) {
-            setSelectedOutlet(outlet)
+            setLoading(true)
+            try {
+                let fetchedOutlets: Outlet[] = []
+
+                if (user.role === 'SUPERADMIN') {
+                    // SuperAdmin: Fetch all outlets
+                    const response = await apiRequest(API_ENDPOINTS.GET_OUTLETS, {
+                        method: 'GET',
+                    })
+                    fetchedOutlets = response.data || []
+                } else if (user.role === 'ADMIN') {
+                    // Admin: Use outlets from user object (AuthContext)
+                    // Map generic user.outlets structure to Outlet interface
+                    // user.outlets might be [{ outletId, outlet: { name, ... } }] or direct Outlet[]
+                    // Based on previous files, it seems to be nested in `outlet` property
+                    const adminUser = user as any;
+                    if (adminUser.outlets && Array.isArray(adminUser.outlets)) {
+                        fetchedOutlets = adminUser.outlets.map((o: any) => ({
+                            id: o.outletId || o.id,
+                            name: o.outlet?.name || o.name || `Outlet ${o.outletId}`,
+                            location: o.outlet?.address || o.address
+                        }))
+                    }
+                }
+
+                setOutlets(fetchedOutlets)
+
+                // Initialize selection
+                // If previously selected ID is still valid, keep it. Otherwise default.
+
+                let targetId: number | 'ALL' | null = selectedOutletId;
+
+                // Force 'ALL' to be invalid since it is hidden now
+                if (targetId === 'ALL') {
+                    targetId = null;
+                }
+
+                // Check if selected numeric ID still exists in the fetched list
+                if (targetId && typeof targetId === 'number') {
+                    const stillExists = fetchedOutlets.find(o => o.id === targetId);
+                    if (!stillExists) {
+                        targetId = null;
+                    }
+                }
+
+                // If no valid target, default to first available outlet
+                if (!targetId && fetchedOutlets.length > 0) {
+                    targetId = fetchedOutlets[0].id;
+                }
+
+                if (targetId) {
+                    selectOutlet(targetId);
+                } else {
+                    setSelectedOutletId(null);
+                    setSelectedOutlet(null);
+                }
+
+            } catch (error) {
+                console.error('Error initializing outlets:', error)
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        initializeOutlets()
+    }, [isAuthenticated, user?.role, user]) // Re-run if user/role changes
+
+    const selectOutlet = (id: number | 'ALL') => {
+        setSelectedOutletId(id)
+        if (id === 'ALL') {
+            setSelectedOutlet(null)
+        } else {
+            const outlet = outlets.find(o => o.id === id)
+            setSelectedOutlet(outlet || null)
         }
     }
 
     const value = {
         outlets,
         selectedOutlet,
-        outletId: selectedOutlet?.id || null,
+        outletId: selectedOutletId,
         selectOutlet,
         loading,
     }

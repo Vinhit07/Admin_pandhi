@@ -14,26 +14,47 @@ import { RefreshCw, Search, Loader2 } from "lucide-react"
 import { DataTable } from "../components/ui/data-table"
 import { useOutlet } from "../context/OutletContext"
 import { orderService } from "../services"
+import { OrderDetailsDialog } from "../components/dialogs/OrderDetailsDialog"
+
+interface OrderItem {
+    name: string
+    quantity: number
+    unitPrice: number
+    totalPrice: number
+}
 
 interface Order {
-    id: string
-    name: string
-    orderItems: string
-    status: "delivered" | "cancelled" | "partially delivered"
-    totalAmount: string
-    orderType: string
-    orderDate: string
+    orderId: number
+    customerName: string
+    customerPhone: string
+    orderItems: OrderItem[]
+    status: string
+    totalAmount: number
+    type: string
+    orderTime: string
     deliveryDate: string
+    deliverySlot: string
+    paymentMethod: string
+}
+
+const formatDate = (dateString: string) => {
+    if (!dateString) return "N/A"
+    const date = new Date(dateString)
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const year = date.getFullYear()
+    return `${day}/${month}/${year}`
 }
 
 const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", className: string }> = {
-        "delivered": { variant: "default", className: "bg-green-100 text-green-800 hover:bg-green-100" },
-        "cancelled": { variant: "destructive", className: "bg-red-100 text-red-800 hover:bg-red-100" },
-        "partially delivered": { variant: "secondary", className: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100" }
+    const statusMap: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", className: string }> = {
+        "PENDING": { variant: "secondary", className: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100" },
+        "DELIVERED": { variant: "default", className: "bg-green-100 text-green-800 hover:bg-green-100" },
+        "CANCELLED": { variant: "destructive", className: "bg-red-100 text-red-800 hover:bg-red-100" },
+        "PARTIALLY_DELIVERED": { variant: "secondary", className: "bg-orange-100 text-orange-800 hover:bg-orange-100" }
     }
-    const config = variants[status] || variants["delivered"]
-    return <Badge variant={config.variant} className={config.className}>{status}</Badge>
+    const config = statusMap[status] || statusMap["PENDING"]
+    return <Badge variant={config.variant} className={config.className}>{status.toLowerCase()}</Badge>
 }
 
 export const OrderManagement = () => {
@@ -43,6 +64,8 @@ export const OrderManagement = () => {
     const [statusFilter, setStatusFilter] = useState("all")
     const [orders, setOrders] = useState<Order[]>([])
     const [loading, setLoading] = useState(false)
+    const [selectedOrder, setSelectedOrder] = useState<any>(null)
+    const [isDialogOpen, setIsDialogOpen] = useState(false)
 
     useEffect(() => {
         if (outletId) {
@@ -73,22 +96,43 @@ export const OrderManagement = () => {
         setStatusFilter("all")
     }
 
+    const handleViewOrder = (order: Order) => {
+        setSelectedOrder({
+            orderId: order.orderId,
+            customerName: order.customerName,
+            customerPhone: order.customerPhone,
+            status: order.status,
+            deliveryDate: order.deliveryDate,
+            deliverySlot: order.deliverySlot,
+            type: order.type,
+            paymentMethod: order.paymentMethod,
+            items: order.orderItems,
+            totalAmount: order.totalAmount
+        })
+        setIsDialogOpen(true)
+    }
+
     // Define columns for the data table
     const columns: ColumnDef<Order>[] = [
         {
-            accessorKey: "id",
+            accessorKey: "orderId",
             header: "ORDER ID",
             cell: ({ row }) => (
-                <span className="font-medium text-primary">{row.getValue("id")}</span>
+                <span className="font-medium text-primary">{row.getValue("orderId")}</span>
             ),
         },
         {
-            accessorKey: "name",
+            accessorKey: "customerName",
             header: "NAME",
         },
         {
             accessorKey: "orderItems",
             header: "ORDER ITEMS",
+            cell: ({ row }) => {
+                const items = row.getValue("orderItems") as OrderItem[]
+                const itemNames = items?.map(item => item.name).join(", ") || "N/A"
+                return <span className="text-sm">{itemNames}</span>
+            }
         },
         {
             accessorKey: "status",
@@ -99,31 +143,41 @@ export const OrderManagement = () => {
             accessorKey: "totalAmount",
             header: "TOTAL AMOUNT",
             cell: ({ row }) => (
-                <span className="font-semibold">{row.getValue("totalAmount")}</span>
+                <span className="font-semibold">₹{Number(row.getValue("totalAmount")).toFixed(2)}</span>
             ),
         },
         {
-            accessorKey: "orderType",
+            accessorKey: "type",
             header: "ORDER TYPE",
             cell: ({ row }) => (
-                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                    {row.getValue("orderType")}
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                    {row.getValue("type")}
                 </Badge>
             ),
         },
         {
-            accessorKey: "orderDate",
+            accessorKey: "orderTime",
             header: "ORDER DATE",
+            cell: ({ row }) => (
+                <span>{formatDate(row.getValue("orderTime"))}</span>
+            ),
         },
         {
             accessorKey: "deliveryDate",
             header: "DELIVERY DATE",
+            cell: ({ row }) => (
+                <span>{formatDate(row.getValue("deliveryDate"))}</span>
+            ),
         },
         {
             id: "actions",
             header: "ACTIONS",
-            cell: () => (
-                <Button size="sm" className="rounded-full">
+            cell: ({ row }) => (
+                <Button
+                    size="sm"
+                    className="rounded-full"
+                    onClick={() => handleViewOrder(row.original)}
+                >
                     View
                 </Button>
             ),
@@ -131,8 +185,10 @@ export const OrderManagement = () => {
     ]
 
     const filteredOrders = orders.filter(order => {
-        const matchesSearch = order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            order.name.toLowerCase().includes(searchQuery.toLowerCase())
+        const matchesSearch =
+            String(order.orderId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (order.customerName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (order.customerPhone || '').toLowerCase().includes(searchQuery.toLowerCase())
         const matchesStatus = statusFilter === "all" || order.status === statusFilter
         return matchesSearch && matchesStatus
     })
@@ -157,9 +213,10 @@ export const OrderManagement = () => {
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Status</SelectItem>
-                            <SelectItem value="delivered">Delivered</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
-                            <SelectItem value="partially delivered">Partially Delivered</SelectItem>
+                            <SelectItem value="PENDING">Pending</SelectItem>
+                            <SelectItem value="DELIVERED">Delivered</SelectItem>
+                            <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                            <SelectItem value="PARTIALLY_DELIVERED">Partially Delivered</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -189,6 +246,13 @@ export const OrderManagement = () => {
             <div className="bg-sidebar border-2 border-sidebar-border rounded-3xl p-6 shadow-lg">
                 <DataTable columns={columns} data={filteredOrders} />
             </div>
+
+            {/* Order Details Dialog */}
+            <OrderDetailsDialog
+                open={isDialogOpen}
+                onClose={() => setIsDialogOpen(false)}
+                order={selectedOrder}
+            />
         </div>
     )
 }

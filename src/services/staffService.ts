@@ -81,4 +81,26 @@ export const staffService = {
             body: data,
         });
     },
+
+    /**
+     * Get unverified staff members
+     * @returns List of unverified staff
+     */
+    getUnverifiedStaff: async (): Promise<ApiResponse<Staff[]>> => {
+        return await apiRequest<ApiResponse<Staff[]>>(API_ENDPOINTS.UNVERIFIED_STAFF, {
+            method: 'GET',
+        });
+    },
+
+    /**
+     * Verify staff member
+     * @param staffId - Staff ID to verify
+     * @returns Success confirmation
+     */
+    verifyStaff: async (staffId: number): Promise<ApiResponse<void>> => {
+        return await apiRequest<ApiResponse<void>>(`${API_ENDPOINTS.VERIFY_STAFF}/${staffId}`, {
+            method: 'PUT',
+        });
+    },
+
 };

@@ -13,16 +13,25 @@ import { Card, CardContent } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
 import { RefreshCw, Search, Loader2 } from "lucide-react"
 import { DataTable } from "../components/ui/data-table"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from "../components/ui/dialog"
 import { useOutlet } from "../context/OutletContext"
 import { ticketService } from "../services/ticketService"
-import type { Ticket } from "../types/api"
 import toast from "react-hot-toast"
+import { formatDateDDMMYYYY } from "../lib/dateUtils"
+import { TicketDetailsDialog } from "../components/dialogs/TicketDetailsDialog"
+import { TicketChatDialog } from "../components/dialogs/TicketChatDialog"
+
+// 1. Updated Interface to match API Log
+interface Ticket {
+    ticketId: number
+    createdAt: string
+    customerName: string
+    customerEmail: string
+    description: string
+    priority: string
+    status: string
+    resolutionNote?: string | null
+    resolvedAt?: string | null
+}
 
 export const TicketManagement = () => {
     const { outletId } = useOutlet()
@@ -36,7 +45,6 @@ export const TicketManagement = () => {
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
     const [isViewModalOpen, setIsViewModalOpen] = useState(false)
     const [isChatModalOpen, setIsChatModalOpen] = useState(false)
-    const [chatMessage, setChatMessage] = useState("")
 
     useEffect(() => {
         if (outletId) {
@@ -52,13 +60,14 @@ export const TicketManagement = () => {
         try {
             setLoading(true)
             const response = await ticketService.getTickets(outletId)
-            // Assuming response.data is the list of tickets
-            if (response.success && response.data) {
-                // Check if data is array or wrapped
-                setTickets(Array.isArray(response.data) ? response.data : [])
-            } else {
-                setTickets([]) // or handle error
-            }
+            console.log("🎫 Tickets Response:", response)
+
+            // 2. FIXED: Removed 'response.success' check. 
+            // The log shows the data is directly in response.data
+            const ticketData = response.data || []
+
+            setTickets(Array.isArray(ticketData) ? ticketData : [])
+
         } catch (error) {
             console.error("Error fetching tickets:", error)
             toast.error("Failed to load tickets")
@@ -83,23 +92,18 @@ export const TicketManagement = () => {
         setIsChatModalOpen(true)
     }
 
-    const handleSendAndClose = async () => {
-        if (!selectedTicket) return
-
-        // In a real scenario, we might post a message. 
-        // Here we will just close the ticket as per available service method.
+    const handleResolveTicket = async (ticketId: string, resolutionNote: string) => {
         try {
-            const response = await ticketService.closeTicket(selectedTicket.id)
-            if (response.success) {
-                toast.success("Ticket closed successfully")
-                // Refresh list
+            const response = await ticketService.closeTicket(Number(ticketId))
+            // Adjust this check depending on your closeTicket API response
+            if (response) {
+                toast.success("Ticket resolved successfully")
                 fetchTickets()
-                setChatMessage("")
                 setIsChatModalOpen(false)
             }
         } catch (error) {
-            console.error("Error closing ticket:", error)
-            toast.error("Failed to close ticket")
+            console.error("Error resolving ticket:", error)
+            toast.error("Failed to resolve ticket")
         }
     }
 
@@ -114,23 +118,28 @@ export const TicketManagement = () => {
         return <Badge className={config.className}>{status}</Badge>
     }
 
-    // Ticket Columns
+    // 3. FIXED: Columns to match API keys (ticketId, priority, etc)
     const ticketColumns: ColumnDef<Ticket>[] = [
         {
-            accessorKey: "id",
+            accessorKey: "ticketId", // Changed from 'id'
             header: "TICKET ID",
             cell: ({ row }) => (
-                <span className="font-medium text-primary">#{row.getValue("id")}</span>
+                <span className="font-medium text-primary">#{row.getValue("ticketId")}</span>
             ),
         },
         {
             accessorKey: "createdAt",
             header: "DATE",
-            cell: ({ row }) => new Date(row.getValue("createdAt")).toLocaleDateString()
+            cell: ({ row }) => formatDateDDMMYYYY(row.getValue("createdAt"))
         },
         {
-            accessorKey: "issueType",
-            header: "ISSUE TYPE",
+            accessorKey: "priority", // API has priority, not issueType
+            header: "PRIORITY",
+            cell: ({ row }) => (
+                <span className="uppercase text-xs font-bold text-muted-foreground">
+                    {row.getValue("priority")}
+                </span>
+            )
         },
         {
             accessorKey: "description",
@@ -143,7 +152,7 @@ export const TicketManagement = () => {
         },
         {
             accessorKey: "customerName",
-            header: "CUSTOMER",  // Need to join or ensured by API
+            header: "CUSTOMER",
             cell: ({ row }) => row.original.customerName || "N/A"
         },
         {
@@ -177,9 +186,10 @@ export const TicketManagement = () => {
         },
     ]
 
+    // 4. FIXED: Filter Logic using correct keys
     const filteredTickets = tickets.filter(ticket => {
         const matchesSearch =
-            ticket.id.toString().includes(searchQuery) ||
+            ticket.ticketId.toString().includes(searchQuery) ||
             ticket.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
             (ticket.customerName || '').toLowerCase().includes(searchQuery.toLowerCase())
 
@@ -191,7 +201,7 @@ export const TicketManagement = () => {
     const openTickets = tickets.filter(t => t.status === "OPEN").length
     const closedTickets = tickets.filter(t => t.status === "CLOSED").length
 
-    if (loading) {
+    if (loading && tickets.length === 0) {
         return (
             <div className="flex items-center justify-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -250,7 +260,7 @@ export const TicketManagement = () => {
                     <div className="bg-card border-2 border-border rounded-full px-4 py-2 shadow-md flex items-center gap-2 max-w-md">
                         <Search size={20} className="text-muted-foreground" />
                         <Input
-                            placeholder="Search by Id, description or name"
+                            placeholder="Search by ID, description or name"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
@@ -271,86 +281,33 @@ export const TicketManagement = () => {
                 <DataTable columns={ticketColumns} data={filteredTickets} />
             </div>
 
-            {/* View Details Modal */}
-            <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
-                <DialogContent className="sm:max-w-md rounded-3xl">
-                    <DialogHeader>
-                        <DialogTitle>Ticket Details: #{selectedTicket?.id}</DialogTitle>
-                    </DialogHeader>
-                    {selectedTicket && (
-                        <div className="space-y-4 py-4">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Date:</p>
-                                <p className="text-base">{new Date(selectedTicket.createdAt).toLocaleString()}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Issue Type:</p>
-                                <p className="text-base">{selectedTicket.issueType}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Description:</p>
-                                <p className="text-base">{selectedTicket.description}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Customer:</p>
-                                <p className="text-base">{selectedTicket.customerName || "N/A"}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Status:</p>
-                                <p className="text-base">{getStatusBadge(selectedTicket.status)}</p>
-                            </div>
-                            {selectedTicket.orderId && (
-                                <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Order ID:</p>
-                                    <p className="text-base">{selectedTicket.orderId}</p>
-                                </div>
-                            )}
-                            <div className="flex justify-end pt-4">
-                                <Button onClick={() => setIsViewModalOpen(false)} className="rounded-full">
-                                    Close
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
+            {/* Ticket Details Dialog */}
+            {selectedTicket && (
+                <TicketDetailsDialog
+                    open={isViewModalOpen}
+                    onClose={() => setIsViewModalOpen(false)}
+                    // 5. FIXED: Mapping API data to Dialog props
+                    ticket={{
+                        id: String(selectedTicket.ticketId),
+                        date: formatDateDDMMYYYY(selectedTicket.createdAt),
+                        description: selectedTicket.description,
+                        raisedBy: selectedTicket.customerName || "N/A",
+                        email: selectedTicket.customerEmail || "N/A",
+                        priority: selectedTicket.priority || "MEDIUM",
+                        status: selectedTicket.status
+                    }}
+                />
+            )}
 
-            {/* Chat/Resolve Modal */}
-            <Dialog open={isChatModalOpen} onOpenChange={setIsChatModalOpen}>
-                <DialogContent className="sm:max-w-md rounded-3xl">
-                    <DialogHeader>
-                        <DialogTitle>Resolve Ticket: #{selectedTicket?.id}</DialogTitle>
-                    </DialogHeader>
-                    {selectedTicket && (
-                        <div className="space-y-4 py-4">
-                            <div className="bg-muted rounded-2xl p-4 min-h-[100px]">
-                                <div className="space-y-3">
-                                    <div className="bg-background rounded-xl p-3">
-                                        <p className="text-sm font-medium">{selectedTicket.description}</p>
-                                        <p className="text-xs text-muted-foreground mt-1">- {selectedTicket.customerName}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <p className="text-sm text-muted-foreground">Resolution Note (Optional)</p>
-                                <Input
-                                    placeholder="Enter resolution details..."
-                                    value={chatMessage}
-                                    onChange={(e) => setChatMessage(e.target.value)}
-                                    className="rounded-xl"
-                                />
-                            </div>
-
-                            <div className="flex justify-end">
-                                <Button onClick={handleSendAndClose} className="rounded-full">
-                                    Resolve & Close Ticket
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
+            {/* Ticket Chat/Resolve Dialog */}
+            <TicketChatDialog
+                open={isChatModalOpen}
+                onClose={() => setIsChatModalOpen(false)}
+                ticketId={String(selectedTicket?.ticketId || "")}
+                ticketDescription={selectedTicket?.description || ""}
+                customerName={selectedTicket?.customerName || "N/A"}
+                onResolve={handleResolveTicket}
+            />
         </div>
     )
 }

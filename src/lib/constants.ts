@@ -89,7 +89,7 @@ export const API_ENDPOINTS = {
     // Wallet Management
     GET_WALLET_HISTORY: '/superadmin/outlets/wallet-history',
     GET_RECHARGE_HISTORY: '/superadmin/outlets/recharge-history',
-    GET_ORDERS_PAID_VIA_WALLET: '/superadmin/outlets/paid-wallet/',
+    GET_ORDERS_PAID_VIA_WALLET: '/superadmin/outlets/paid-wallet',
 
     // Customer Management
     GET_CUSTOMERS: '/superadmin/outlets/customers',

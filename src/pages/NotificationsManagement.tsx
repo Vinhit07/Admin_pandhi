@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { formatDate, formatDateTime } from "../lib/dateUtils"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
@@ -68,11 +69,19 @@ export const NotificationsManagement = () => {
                 notificationService.getCoupons(outletId)
             ])
 
+            console.log("📋 Coupon Response:", couponRes)
+            console.log("📋 Coupon Response.data:", couponRes.data)
+
             if (notifRes.success && notifRes.data) {
                 setNotifications(Array.isArray(notifRes.data) ? notifRes.data : [])
             }
-            if (couponRes.success && couponRes.data) {
-                setCoupons(Array.isArray(couponRes.data) ? couponRes.data : [])
+            if (couponRes.data) {
+                // Handle both nested and non-nested response structures
+                const couponData = Array.isArray(couponRes.data)
+                    ? couponRes.data
+                    : (couponRes.data?.data || [])
+                console.log("📋 Setting coupons to:", couponData)
+                setCoupons(couponData)
             }
         } catch (error) {
             console.error("Error fetching data:", error)
@@ -88,16 +97,14 @@ export const NotificationsManagement = () => {
         }
 
         try {
-            const scheduledFor = notifScheduleDate && notifScheduleTime
-                ? `${notifScheduleDate} ${notifScheduleTime}`
-                : new Date().toISOString()
-
             const response = await notificationService.scheduleNotification({
                 title: notifTitle,
                 message: notifMessage,
                 targetAudience: 'ALL',
-                scheduledFor,
-                outletId: typeof outletId === 'string' ? parseInt(outletId) : outletId
+                scheduledDate: notifScheduleDate,
+                scheduledTime: notifScheduleTime + ":00",
+                outletId: typeof outletId === 'string' ? parseInt(outletId) : outletId,
+                priority: notifPriority || "MEDIUM",
             })
 
             if (response.success) {
@@ -207,7 +214,7 @@ export const NotificationsManagement = () => {
         {
             accessorKey: "scheduledFor",
             header: "SCHEDULED AT",
-            cell: ({ row }) => new Date(row.getValue("scheduledFor")).toLocaleString()
+            cell: ({ row }) => formatDateTime(row.getValue("scheduledFor"))
         },
         {
             accessorKey: "status",
@@ -261,9 +268,9 @@ export const NotificationsManagement = () => {
             cell: ({ row }) => `₹${row.getValue("minOrderAmount") || 0}`
         },
         {
-            accessorKey: "validTo",
+            accessorKey: "validUntil",
             header: "VALID UNTIL",
-            cell: ({ row }) => new Date(row.getValue("validTo")).toLocaleDateString()
+            cell: ({ row }) => formatDate(row.getValue("validUntil"))
         },
         {
             accessorKey: "usedCount",

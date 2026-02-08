@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { formatDate } from "../lib/dateUtils"
 import { Input } from "../components/ui/input"
 import {
     Select,
@@ -41,7 +42,7 @@ export const ReportsAnalytics = () => {
         if (outletId) {
             fetchData()
         }
-    }, [outletId, activeTab])
+    }, [outletId, activeTab, selectedYear]) // Added selectedYear to dependencies
 
     const fetchData = async () => {
         if (!outletId) return
@@ -49,37 +50,97 @@ export const ReportsAnalytics = () => {
         try {
             setLoading(true)
             const params: AnalyticsParams = {
-                startDate: `${selectedYear}-01-01`,
-                endDate: `${selectedYear}-12-31`,
+                from: `${selectedYear}-01-01`,
+                to: `${selectedYear}-12-31`,
             }
 
             // Fetch data based on active tab
             switch (activeTab) {
                 case "sales":
-                    const salesRes = await reportService.getSalesReport(parseInt(outletId), params)
-                    if (salesRes.success && salesRes.data) {
-                        setSalesData(Array.isArray(salesRes.data) ? salesRes.data : [])
+                    const salesRes = await reportService.getSalesReport(outletId, params)
+                    // Fix: Handle array response directly (API returns [{},{},...])
+                    if (Array.isArray(salesRes)) {
+                        setSalesData(salesRes)
+                    } else if (salesRes?.data && Array.isArray(salesRes.data)) {
+                        setSalesData(salesRes.data)
+                    } else {
+                        setSalesData([])
                     }
                     break
 
                 case "revenue":
-                    const revenueRes = await reportService.getRevenueSplit(parseInt(outletId), params)
-                    if (revenueRes.success && revenueRes.data) {
-                        setRevenueData(Array.isArray(revenueRes.data) ? revenueRes.data : [])
+                    const revenueRes = await reportService.getRevenueSplit(outletId, params)
+                    // Check for nested data or direct object
+                    const revenueRaw = (revenueRes as any).data || revenueRes
+
+                    if (revenueRaw) {
+                        const total = revenueRaw.totalRevenue || 0
+                        const revenueArray = [
+                            {
+                                source: "App Orders",
+                                category: "Online",
+                                amount: revenueRaw.revenueByAppOrder || 0,
+                                percentage: total > 0 ? ((revenueRaw.revenueByAppOrder / total) * 100).toFixed(1) : 0,
+                                transactions: 0
+                            },
+                            {
+                                source: "Manual Orders",
+                                category: "Offline",
+                                amount: revenueRaw.revenueByManualOrder || 0,
+                                percentage: total > 0 ? ((revenueRaw.revenueByManualOrder / total) * 100).toFixed(1) : 0,
+                                transactions: 0
+                            },
+                            {
+                                source: "Wallet Recharge",
+                                category: "Digital Wallet",
+                                amount: revenueRaw.revenueByWalletRecharge || 0,
+                                percentage: total > 0 ? ((revenueRaw.revenueByWalletRecharge / total) * 100).toFixed(1) : 0,
+                                transactions: 0
+                            }
+                        ]
+                        setRevenueData(revenueArray)
                     }
                     break
 
                 case "profit":
-                    const profitRes = await reportService.getProfitLossTrends(parseInt(outletId), params)
-                    if (profitRes.success && profitRes.data) {
-                        setProfitData(Array.isArray(profitRes.data) ? profitRes.data : [])
+                    // Profit/loss endpoint requires year instead of from/to
+                    const profitParams = { year: parseInt(selectedYear) }
+                    const profitRes = await reportService.getProfitLossTrends(outletId, profitParams)
+
+                    // Fix: Handle array response directly
+                    if (Array.isArray(profitRes)) {
+                        setProfitData(profitRes)
+                    } else if (profitRes?.data && Array.isArray(profitRes.data)) {
+                        setProfitData(profitRes.data)
+                    } else {
+                        setProfitData([])
                     }
                     break
 
                 case "customers":
-                    const customerRes = await reportService.getCustomerOverview(parseInt(outletId), params)
-                    if (customerRes.success && customerRes.data) {
-                        setCustomerData(Array.isArray(customerRes.data) ? customerRes.data : [])
+                    const customerRes = await reportService.getCustomerOverview(outletId, params)
+                    const customerRaw = (customerRes as any).data || customerRes
+
+                    if (customerRaw) {
+                        const customerArray = [
+                            {
+                                name: "New Customers",
+                                customerName: "New Customers",
+                                orders: customerRaw.newCustomers || 0,
+                                totalSpent: 0,
+                                lastOrder: "-",
+                                status: "New"
+                            },
+                            {
+                                name: "Returning Customers",
+                                customerName: "Returning Customers",
+                                orders: customerRaw.returningCustomers || 0,
+                                totalSpent: 0,
+                                lastOrder: "-",
+                                status: "Active"
+                            }
+                        ]
+                        setCustomerData(customerArray)
                     }
                     break
             }
@@ -92,9 +153,10 @@ export const ReportsAnalytics = () => {
 
     // Filter sales data
     const filteredSalesData = salesData.filter((item) => {
-        const matchesCategory = categoryFilter === "All" || item.category === categoryFilter
-        const matchesSearch = item.product?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.name?.toLowerCase().includes(searchQuery.toLowerCase())
+        // If API doesn't return category, this will fail unless filter is "All".
+        // item.category check added to prevent crashes if undefined
+        const matchesCategory = categoryFilter === "All" || (item.category && item.category === categoryFilter)
+        const matchesSearch = searchQuery === "" || item.productName?.toLowerCase().includes(searchQuery.toLowerCase())
         return matchesCategory && matchesSearch
     })
 
@@ -209,7 +271,7 @@ export const ReportsAnalytics = () => {
 
             {/* Filters Row */}
             <div className="flex items-center gap-4 flex-wrap">
-                {activeTab !== "profit" && (
+                {activeTab === "sales" && (
                     <>
                         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                             <SelectTrigger className="w-[150px] bg-yellow-100 dark:bg-yellow-900/30 border-2 border-yellow-200 dark:border-yellow-700 text-foreground rounded-xl">
@@ -259,7 +321,7 @@ export const ReportsAnalytics = () => {
                 </button>
             </div>
 
-            {/* Sales Report Table */}
+            {/* Sales Table */}
             {activeTab === "sales" && (
                 <div className="bg-card rounded-2xl border border-border overflow-hidden">
                     <div className="p-4 border-b border-border">
@@ -279,11 +341,11 @@ export const ReportsAnalytics = () => {
                             <tbody>
                                 {filteredSalesData.length > 0 ? filteredSalesData.map((item, idx) => (
                                     <tr key={idx} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                                        <td className="px-6 py-4 text-foreground">{item.product || item.name || 'N/A'}</td>
+                                        <td className="px-6 py-4 text-foreground">{item.productName || 'N/A'}</td>
                                         <td className="px-6 py-4 text-muted-foreground">{item.category || 'N/A'}</td>
-                                        <td className="px-6 py-4 text-green-500 font-medium">₹{item.price?.toFixed(2) || '0.00'}</td>
-                                        <td className="px-6 py-4 text-muted-foreground">{item.orders || item.totalOrders || 0}</td>
-                                        <td className="px-6 py-4 text-green-500 font-semibold">₹{(item.revenue || item.totalRevenue || 0).toLocaleString()}</td>
+                                        <td className="px-6 py-4 text-green-500 font-medium">₹{item.quantity > 0 ? (item.revenue / item.quantity).toFixed(2) : '0.00'}</td>
+                                        <td className="px-6 py-4 text-muted-foreground">{item.totalOrders || 0}</td>
+                                        <td className="px-6 py-4 text-green-500 font-semibold">₹{(item.revenue || 0).toLocaleString()}</td>
                                     </tr>
                                 )) : (
                                     <tr>
@@ -402,7 +464,7 @@ export const ReportsAnalytics = () => {
                                         <td className="px-6 py-4 text-foreground">{item.name || item.customerName || 'N/A'}</td>
                                         <td className="px-6 py-4 text-muted-foreground">{item.orders || item.totalOrders || 0}</td>
                                         <td className="px-6 py-4 text-green-500 font-semibold">₹{(item.totalSpent || 0).toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-muted-foreground">{item.lastOrder ? new Date(item.lastOrder).toLocaleDateString() : 'N/A'}</td>
+                                        <td className="px-6 py-4 text-muted-foreground">{item.lastOrder ? formatDate(item.lastOrder) : 'N/A'}</td>
                                         <td className={`px-6 py-4 font-medium ${getStatusColor(item.status || 'Active')}`}>{item.status || 'Active'}</td>
                                     </tr>
                                 )) : (

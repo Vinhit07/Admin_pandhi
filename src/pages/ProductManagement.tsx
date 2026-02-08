@@ -15,6 +15,7 @@ import {
     DialogHeader,
     DialogTitle,
     DialogFooter,
+    DialogDescription,
 } from "../components/ui/dialog"
 import { Upload, Loader2 } from "lucide-react"
 import { ProductCard } from "../components/ProductCard"
@@ -37,12 +38,13 @@ export const ProductManagement = () => {
 
     // Category filter
     const [categoryFilter, setCategoryFilter] = useState("All")
-    const categories = ["All", "MEALS", "BEVERAGES", "SPECIALFOODS"] // These could also come from API unique valus
+    const categories = ["All", "Meals", "Beverages", "SpecialFoods", "Starters", "Desserts"]
 
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const [imageFile, setImageFile] = useState<File | null>(null)
 
     // Form state
     const [formData, setFormData] = useState({
@@ -50,8 +52,11 @@ export const ProductManagement = () => {
         description: "",
         price: "",
         category: "",
-        // foodType: "vegetarian", // Not in API currently
         imageUrl: null as string | null,
+        threshold: "10",
+        minValue: "0",
+        isVeg: true,
+        companyPaid: false,
     })
 
     useEffect(() => {
@@ -65,6 +70,7 @@ export const ProductManagement = () => {
         try {
             setLoading(true)
             const response = await productService.getProducts(outletId)
+            console.log("🍴 Products Response:", response)
             if (response.success && response.data) {
                 setProducts(response.data)
             }
@@ -88,7 +94,12 @@ export const ProductManagement = () => {
             price: "",
             category: "",
             imageUrl: null,
+            threshold: "10",
+            minValue: "0",
+            isVeg: true,
+            companyPaid: false,
         })
+        setImageFile(null)
     }
 
     const handleAddProduct = async () => {
@@ -103,19 +114,33 @@ export const ProductManagement = () => {
                 description: formData.description,
                 price: parseFloat(formData.price),
                 category: formData.category,
-                imageUrl: formData.imageUrl || "",
-                outletId: outletId
-            })
+                outletId: outletId,
+                threshold: parseInt(formData.threshold) || 10,
+                minValue: parseInt(formData.minValue) || 0,
+                isVeg: formData.isVeg,
+                companyPaid: formData.companyPaid,
+            }, imageFile || undefined)
 
             if (response.success && response.data) {
                 setProducts([...products, response.data])
                 setIsAddDialogOpen(false)
                 resetForm()
                 toast.success("Product added successfully")
+            } else {
+                // Check if response itself has error message even if success is false/undefined
+                const msg = response.message || "Failed to add product"
+                toast.error(msg)
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error adding product:", error)
-            toast.error("Failed to add product")
+            // Extract error message from API response if available
+            const errorMsg = error.response?.data?.error || error.message || "Failed to add product";
+            // Check for specific "Product already available" message
+            if (errorMsg.includes("Product already available")) {
+                toast.error("A product with this name already exists.");
+            } else {
+                toast.error(errorMsg);
+            }
         }
     }
 
@@ -131,7 +156,14 @@ export const ProductManagement = () => {
                 price: parseFloat(formData.price),
                 category: formData.category,
                 imageUrl: formData.imageUrl || "",
-            })
+                // Include missing required fields
+                outletId: outletId,
+                // Include other editable fields
+                threshold: parseInt(formData.threshold) || 10,
+                minValue: parseInt(formData.minValue) || 0,
+                isVeg: formData.isVeg,
+                companyPaid: formData.companyPaid,
+            }, imageFile || undefined)
 
             if (response.success && response.data) {
                 const updatedProducts = products.map((p) =>
@@ -172,6 +204,10 @@ export const ProductManagement = () => {
             price: product.price.toString(),
             category: product.category || "",
             imageUrl: product.imageUrl || null,
+            threshold: "10", // Could get from product.inventory if available
+            minValue: "0",
+            isVeg: true,
+            companyPaid: false,
         })
         setIsEditDialogOpen(true)
     }
@@ -179,6 +215,7 @@ export const ProductManagement = () => {
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (file) {
+            setImageFile(file)
             const reader = new FileReader()
             reader.onloadend = () => {
                 setFormData({ ...formData, imageUrl: reader.result as string })
@@ -271,11 +308,81 @@ export const ProductManagement = () => {
                                 <SelectValue placeholder="Select" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="MEALS">Meals</SelectItem>
-                                <SelectItem value="BEVERAGES">Beverages</SelectItem>
-                                <SelectItem value="SPECIALFOODS">Special Foods</SelectItem>
+                                <SelectItem value="Meals">Meals</SelectItem>
+                                <SelectItem value="Beverages">Beverages</SelectItem>
+                                <SelectItem value="SpecialFoods">Special Foods</SelectItem>
+                                <SelectItem value="Starters">Starters</SelectItem>
+                                <SelectItem value="Desserts">Desserts</SelectItem>
                             </SelectContent>
                         </Select>
+                    </div>
+                </div>
+
+                {/* Threshold & Min Value Row */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            Alert Threshold
+                        </label>
+                        <Input
+                            type="number"
+                            value={formData.threshold}
+                            onChange={(e) => setFormData({ ...formData, threshold: e.target.value })}
+                            placeholder="10"
+                            className="mt-1.5"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            Min Value
+                        </label>
+                        <Input
+                            type="number"
+                            value={formData.minValue}
+                            onChange={(e) => setFormData({ ...formData, minValue: e.target.value })}
+                            placeholder="0"
+                            className="mt-1.5"
+                        />
+                    </div>
+                </div>
+
+                {/* Food Type & Company Paid Row */}
+                <div className="space-y-3">
+                    <div>
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">
+                            Food Type
+                        </label>
+                        <div className="flex gap-4">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    checked={formData.isVeg}
+                                    onChange={() => setFormData({ ...formData, isVeg: true })}
+                                    className="accent-green-600"
+                                />
+                                <span className="text-sm">Vegetarian</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    checked={!formData.isVeg}
+                                    onChange={() => setFormData({ ...formData, isVeg: false })}
+                                    className="accent-red-600"
+                                />
+                                <span className="text-sm">Non-Vegetarian</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={formData.companyPaid}
+                                onChange={(e) => setFormData({ ...formData, companyPaid: e.target.checked })}
+                                className="accent-blue-600"
+                            />
+                            <span className="text-sm font-medium">Company Paid</span>
+                        </label>
                     </div>
                 </div>
             </div>
@@ -343,11 +450,13 @@ export const ProductManagement = () => {
                             key={product.id}
                             product={{
                                 ...product,
-                                id: product.id.toString(), // Adapter needed here if ProductCard expects string id
-                                foodType: "vegetarian", // Default or omitted
-                                stock: 0, // Default
-                                alertThreshold: 0, // Default
-                                minValue: 0, // Default
+                                description: product.description || "",
+                                category: product.category || "",
+                                id: product.id?.toString() || `temp-${Math.random()}`,
+                                foodType: product.isVeg ? "vegetarian" : "non-vegetarian",
+                                stock: product.inventory?.quantity || 0,
+                                alertThreshold: product.inventory?.threshold || 10,
+                                minValue: product.inventory?.minValue || 0,
                                 image: product.imageUrl || null
                             }}
                             onEdit={() => openEditDialog(product)}
@@ -367,9 +476,10 @@ export const ProductManagement = () => {
 
             {/* Add Product Dialog */}
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>Add New Product</DialogTitle>
+                        <DialogTitle className="text-2xl font-bold">Add New Product</DialogTitle>
+                        <DialogDescription>Fill in the product details below</DialogDescription>
                     </DialogHeader>
                     {formJSX}
                     <DialogFooter className="gap-2 pt-4">
@@ -388,9 +498,10 @@ export const ProductManagement = () => {
 
             {/* Edit Product Dialog */}
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>Edit Product</DialogTitle>
+                        <DialogTitle className="text-2xl font-bold">Edit Product</DialogTitle>
+                        <DialogDescription>Update the product details below</DialogDescription>
                     </DialogHeader>
                     {formJSX}
                     <DialogFooter className="gap-2 pt-4">

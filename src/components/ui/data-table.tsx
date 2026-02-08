@@ -27,14 +27,18 @@ import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-r
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
     data: TData[]
+    pageSize?: number
 }
 
 export function DataTable<TData, TValue>({
     columns,
     data,
+    pageSize = 10,
 }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = useState<SortingState>([])
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+
+    // ... (console logs commented out)
 
     const table = useReactTable({
         data,
@@ -51,7 +55,7 @@ export function DataTable<TData, TValue>({
         },
         initialState: {
             pagination: {
-                pageSize: 10,
+                pageSize: pageSize,
             },
         },
     })

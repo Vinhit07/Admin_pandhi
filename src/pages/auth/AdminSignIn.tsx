@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogIn, Shield, User } from 'lucide-react';
+import { LogIn, Shield, User, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ROUTES } from '../../lib/constants';
 import toast from 'react-hot-toast';
@@ -13,6 +13,7 @@ const AdminSignIn: React.FC = () => {
     const { adminSignIn, superAdminSignIn, loading, error, clearError, isAuthenticated } = useAuth();
 
     const [userType, setUserType] = useState<'admin' | 'superadmin'>('admin');
+    const [showPassword, setShowPassword] = useState(false);
     const [formData, setFormData] = useState({
         email: '',
         password: '',
@@ -163,16 +164,29 @@ const AdminSignIn: React.FC = () => {
                                 <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1">
                                     Password
                                 </label>
-                                <input
-                                    id="password"
-                                    name="password"
-                                    type="password"
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                    placeholder="Enter your password"
-                                    className={`w-full px-4 py-2 bg-background rounded-lg border-2 ${formErrors.password ? 'border-destructive' : 'border-border'
-                                        } focus:outline-none focus:ring-2 focus:ring-ring transition`}
-                                />
+                                <div className="relative">
+                                    <input
+                                        id="password"
+                                        name="password"
+                                        type={showPassword ? "text" : "password"}
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        placeholder="Enter your password"
+                                        className={`w-full px-4 py-2 bg-background rounded-lg border-2 ${formErrors.password ? 'border-destructive' : 'border-border'
+                                            } focus:outline-none focus:ring-2 focus:ring-ring transition pr-10`}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground"
+                                    >
+                                        {showPassword ? (
+                                            <EyeOff className="h-4 w-4" />
+                                        ) : (
+                                            <Eye className="h-4 w-4" />
+                                        )}
+                                    </button>
+                                </div>
                                 {formErrors.password && (
                                     <p className="text-sm text-destructive mt-1">{formErrors.password}</p>
                                 )}
