@@ -8,7 +8,7 @@ import { Button } from "../ui/button"
 import { Badge } from "../ui/badge"
 
 interface OrderItem {
-    name: string
+    productName: string
     quantity: number
     unitPrice: number
     totalPrice: number
@@ -117,7 +117,7 @@ export const OrderDetailsDialog = ({ open, onClose, order }: OrderDetailsDialogP
                             <tbody>
                                 {(order.items || []).map((item, index) => (
                                     <tr key={index}>
-                                        <td className="border p-2">{item.name}</td>
+                                        <td className="border p-2">{item.productName}</td>
                                         <td className="border p-2 text-center">{item.quantity}</td>
                                         <td className="border p-2 text-right">₹{item.unitPrice.toFixed(2)}</td>
                                         <td className="border p-2 text-right">₹{item.totalPrice.toFixed(2)}</td>

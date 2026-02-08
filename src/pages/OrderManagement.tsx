@@ -17,7 +17,7 @@ import { orderService } from "../services"
 import { OrderDetailsDialog } from "../components/dialogs/OrderDetailsDialog"
 
 interface OrderItem {
-    name: string
+    productName: string
     quantity: number
     unitPrice: number
     totalPrice: number
@@ -27,7 +27,7 @@ interface Order {
     orderId: number
     customerName: string
     customerPhone: string
-    orderItems: OrderItem[]
+    items: OrderItem[]
     status: string
     totalAmount: number
     type: string
@@ -106,7 +106,7 @@ export const OrderManagement = () => {
             deliverySlot: order.deliverySlot,
             type: order.type,
             paymentMethod: order.paymentMethod,
-            items: order.orderItems,
+            items: order.items,
             totalAmount: order.totalAmount
         })
         setIsDialogOpen(true)
@@ -126,11 +126,11 @@ export const OrderManagement = () => {
             header: "NAME",
         },
         {
-            accessorKey: "orderItems",
+            accessorKey: "items",
             header: "ORDER ITEMS",
             cell: ({ row }) => {
-                const items = row.getValue("orderItems") as OrderItem[]
-                const itemNames = items?.map(item => item.name).join(", ") || "N/A"
+                const items = row.getValue("items") as OrderItem[]
+                const itemNames = items?.map(item => item.productName).join(", ") || "N/A"
                 return <span className="text-sm">{itemNames}</span>
             }
         },

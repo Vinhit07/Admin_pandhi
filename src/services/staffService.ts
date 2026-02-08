@@ -97,9 +97,10 @@ export const staffService = {
      * @param staffId - Staff ID to verify
      * @returns Success confirmation
      */
-    verifyStaff: async (staffId: number): Promise<ApiResponse<void>> => {
+    verifyStaff: async (staffId: number, outletId: number, staffRole: string): Promise<ApiResponse<void>> => {
         return await apiRequest<ApiResponse<void>>(`${API_ENDPOINTS.VERIFY_STAFF}/${staffId}`, {
-            method: 'PUT',
+            method: 'POST',
+            body: { outletId, staffRole }
         });
     },
 

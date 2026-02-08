@@ -35,6 +35,11 @@ export const Onboarding = () => {
     const [selectedAdminId, setSelectedAdminId] = useState<number | null>(null)
     const [selectedOutletId, setSelectedOutletId] = useState<string>("")
 
+    // Staff Verification Dialog State
+    const [isStaffVerifyDialogOpen, setIsStaffVerifyDialogOpen] = useState(false)
+    const [verifyingStaffId, setVerifyingStaffId] = useState<number | null>(null)
+    const [selectedStaffRole, setSelectedStaffRole] = useState<string>("COUNTER")
+
 
 
     useEffect(() => {
@@ -45,8 +50,16 @@ export const Onboarding = () => {
     const fetchOutlets = async () => {
         try {
             const response = await outletService.getOutlets()
-            if (response.success && response.data) {
-                setOutlets(response.data)
+            // Handle both raw array and wrapped response
+            // The API return type says ApiResponse<Outlet[]> but actual response might be Outlet[]
+            const outletsData = Array.isArray(response)
+                ? response
+                : (response.data && Array.isArray(response.data) ? response.data : [])
+
+            if (outletsData.length > 0) {
+                setOutlets(outletsData)
+            } else {
+                console.warn("Onboarding: No outlets found in response")
             }
         } catch (error) {
             console.error("Error fetching outlets", error)
@@ -57,14 +70,16 @@ export const Onboarding = () => {
         setLoading(true)
         try {
             if (activeTab === 'admin') {
-                const response = await adminService.getPendingAdmins()
-                if (response.success && response.data) {
-                    setAdmins(response.data)
+                const data = await adminService.getPendingAdmins()
+                // apiRequest returns data directly
+                if (Array.isArray(data)) {
+                    setAdmins(data)
                 }
             } else {
-                const response = await staffService.getUnverifiedStaff()
-                if (response.success && response.data) {
-                    setStaff(response.data)
+                const data = await staffService.getUnverifiedStaff()
+                // apiRequest returns data directly
+                if (Array.isArray(data)) {
+                    setStaff(data)
                 }
             }
         } catch (error) {
@@ -76,23 +91,33 @@ export const Onboarding = () => {
 
     const handleVerifyAdmin = async (id: number) => {
         try {
-            const response = await adminService.verifyAdmin(id)
-            if (response.success) {
-                setAdmins(admins.filter(a => a.id !== id))
-                toast.success("Admin verified successfully")
-            }
+            await adminService.verifyAdmin(id)
+            setAdmins(admins.filter(a => a.id !== id))
+            toast.success("Admin verified successfully")
         } catch (error) {
             toast.error("Failed to verify admin")
         }
     }
 
-    const handleVerifyStaff = async (id: number) => {
+    const handleVerifyStaff = (id: number) => {
+        setVerifyingStaffId(id)
+        setIsStaffVerifyDialogOpen(true)
+    }
+
+    const handleVerifyStaffSubmit = async () => {
+        if (!verifyingStaffId || !selectedOutletId || !selectedStaffRole) {
+            toast.error("Please select an outlet and role")
+            return
+        }
+
         try {
-            const response = await staffService.verifyStaff(id)
-            if (response.success) {
-                setStaff(staff.filter(s => s.id !== id))
-                toast.success("Staff verified successfully")
-            }
+            await staffService.verifyStaff(verifyingStaffId, parseInt(selectedOutletId), selectedStaffRole)
+            setStaff(staff.filter(s => s.id !== verifyingStaffId))
+            toast.success("Staff verified successfully")
+            setIsStaffVerifyDialogOpen(false)
+            setVerifyingStaffId(null)
+            setSelectedOutletId("")
+            setSelectedStaffRole("COUNTER")
         } catch (error) {
             toast.error("Failed to verify staff")
         }
@@ -107,12 +132,10 @@ export const Onboarding = () => {
         if (!selectedAdminId || !selectedOutletId) return
 
         try {
-            const response = await adminService.mapOutletToAdmin(selectedAdminId, parseInt(selectedOutletId))
-            if (response.success) {
-                toast.success("Outlet mapped successfully")
-                setIsMapDialogOpen(false)
-                setSelectedOutletId("")
-            }
+            await adminService.mapOutletToAdmin(selectedAdminId, parseInt(selectedOutletId))
+            toast.success("Outlet mapped successfully")
+            setIsMapDialogOpen(false)
+            setSelectedOutletId("")
         } catch (error) {
             toast.error("Failed to map outlet")
         }
@@ -234,6 +257,53 @@ export const Onboarding = () => {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsMapDialogOpen(false)}>Cancel</Button>
                         <Button onClick={handleMapOutlet}>Map Outlet</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Staff Verification Dialog */}
+            <Dialog open={isStaffVerifyDialogOpen} onOpenChange={setIsStaffVerifyDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Verify Staff Member</DialogTitle>
+                        <DialogDescription>
+                            Assign an outlet and role to this staff member.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div>
+                            <Label>Select Outlet</Label>
+                            <Select value={selectedOutletId} onValueChange={setSelectedOutletId}>
+                                <SelectTrigger className="mt-1.5">
+                                    <SelectValue placeholder="Select an outlet" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {outlets.map(outlet => (
+                                        <SelectItem key={outlet.id} value={outlet.id.toString()}>
+                                            {outlet.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Label>Staff Role</Label>
+                            <Select value={selectedStaffRole} onValueChange={setSelectedStaffRole}>
+                                <SelectTrigger className="mt-1.5">
+                                    <SelectValue placeholder="Select role" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="MANAGER">Manager</SelectItem>
+                                    <SelectItem value="KITCHEN">Kitchen Staff</SelectItem>
+                                    <SelectItem value="DELIVERY">Delivery Staff</SelectItem>
+                                    <SelectItem value="COUNTER">Counter Staff</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsStaffVerifyDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleVerifyStaffSubmit}>Verify Staff</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
