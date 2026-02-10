@@ -149,11 +149,20 @@ export const OrderManagement = () => {
         {
             accessorKey: "type",
             header: "ORDER TYPE",
-            cell: ({ row }) => (
-                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                    {row.getValue("type")}
-                </Badge>
-            ),
+            cell: ({ row }) => {
+                const type = row.getValue("type") as string;
+                const isManual = type === "MANUAL";
+                return (
+                    <Badge
+                        variant="outline"
+                        className={isManual
+                            ? "bg-green-50 text-green-700 border-green-200"
+                            : "bg-blue-50 text-blue-700 border-blue-200"}
+                    >
+                        {type}
+                    </Badge>
+                );
+            },
         },
         {
             accessorKey: "orderTime",

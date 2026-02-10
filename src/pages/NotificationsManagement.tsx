@@ -23,6 +23,7 @@ import type { NotificationSchedule, Coupon } from "../types/api"
 export const NotificationsManagement = () => {
     const { outletId } = useOutlet()
 
+    const [activeTab, setActiveTab] = useState("notifications")
     const [showCreateNotification, setShowCreateNotification] = useState(false)
     const [showCreateCoupon, setShowCreateCoupon] = useState(false)
 
@@ -131,56 +132,61 @@ export const NotificationsManagement = () => {
         }
 
         try {
-            const response = await notificationService.createCoupon({
+            // Convert datetime-local format to RFC3339 (add :00Z for timezone)
+            const validFromRFC3339 = validFrom ? `${validFrom}:00Z` : '';
+            const validUntilRFC3339 = validUntil ? `${validUntil}:00Z` : '';
+
+            await notificationService.createCoupon({
                 code: couponCode,
-                discountType: 'PERCENTAGE',
-                discountValue: parseFloat(rewardValue),
-                minOrderAmount: minOrderValue ? parseFloat(minOrderValue) : undefined,
-                validFrom,
-                validUntil,
+                rewardValue: `${rewardValue}%`, // Backend expects string with % symbol
+                minOrderValue: minOrderValue ? parseFloat(minOrderValue) : 0,
+                validFrom: validFromRFC3339,
+                validUntil: validUntilRFC3339,
                 usageLimit: parseInt(usageLimit),
                 outletId: typeof outletId === 'string' ? parseInt(outletId) : outletId
             })
 
-            if (response.success) {
-                alert("Coupon created successfully")
-                setShowCreateCoupon(false)
-                fetchData()
-                // Reset form
-                setCouponCode("")
-                setRewardValue("")
-                setCouponDescription("")
-                setMinOrderValue("")
-                setUsageLimit("")
-                setValidFrom("")
-                setValidUntil("")
-                setAutoSendNotif(false)
-            }
-        } catch (error) {
+            alert("Coupon created successfully")
+            setShowCreateCoupon(false)
+            // Reset form
+            setCouponCode("")
+            setRewardValue("")
+            setCouponDescription("")
+            setMinOrderValue("")
+            setUsageLimit("")
+            setValidFrom("")
+            setValidUntil("")
+            setAutoSendNotif(false)
+            // Always refresh data
+            await fetchData()
+        } catch (error: any) {
             console.error("Error creating coupon:", error)
-            alert("Failed to create coupon")
+            alert(error?.message || "Failed to create coupon")
         }
     }
 
     const handleDeleteNotification = async (id: number) => {
         try {
-            const response = await notificationService.cancelNotification(id)
-            if (response.success) {
-                fetchData()
-            }
+            await notificationService.cancelNotification(id)
+            await fetchData()
         } catch (error) {
             console.error("Error deleting notification:", error)
+            alert("Failed to delete notification")
         }
     }
 
     const handleDeleteCoupon = async (id: number) => {
+        if (!confirm("Are you sure you want to delete this coupon?")) {
+            return
+        }
+
         try {
-            const response = await notificationService.deleteCoupon(id)
-            if (response.success) {
-                fetchData()
-            }
+            await notificationService.deleteCoupon(id)
+            alert("Coupon deleted successfully")
+            await fetchData()
         } catch (error) {
             console.error("Error deleting coupon:", error)
+            alert("Failed to delete coupon")
         }
     }
 
@@ -313,7 +319,7 @@ export const NotificationsManagement = () => {
     return (
         <div className="space-y-6">
             <div className="bg-sidebar border-2 border-sidebar-border rounded-3xl p-6 shadow-lg">
-                <Tabs defaultValue="notifications" className="w-full">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="grid w-full max-w-lg grid-cols-3 mb-6">
                         <TabsTrigger value="notifications">Notifications</TabsTrigger>
                         <TabsTrigger value="promotion">Promotion</TabsTrigger>

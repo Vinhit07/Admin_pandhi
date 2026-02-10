@@ -399,13 +399,13 @@ export interface Coupon {
 
 export interface CouponCreateRequest {
     code: string;
-    discountType: 'PERCENTAGE' | 'FIXED';
-    discountValue: number;
-    minOrderAmount?: number;
-    maxDiscountAmount?: number;
+    rewardValue: string; // Backend expects string with % symbol
+    minOrderValue: number;
+    description?: string;
     validFrom: string;
-    validTo: string;
+    validUntil: string;
     usageLimit?: number;
+    isActive?: boolean;
     outletId: number;
 }
 
