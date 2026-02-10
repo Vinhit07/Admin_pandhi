@@ -19,6 +19,7 @@ import { Loader2 } from "lucide-react"
 import { useOutlet } from "../context/OutletContext"
 import { notificationService } from "../services"
 import type { NotificationSchedule, Coupon } from "../types/api"
+import toast from "react-hot-toast"
 
 export const NotificationsManagement = () => {
     const { outletId } = useOutlet()
@@ -93,7 +94,7 @@ export const NotificationsManagement = () => {
 
     const handleScheduleNotification = async () => {
         if (!notifTitle || !notifMessage || !outletId) {
-            alert("Please fill in required fields")
+            toast.error("Please fill in required fields")
             return
         }
 
@@ -109,7 +110,7 @@ export const NotificationsManagement = () => {
             })
 
             if (response.success) {
-                alert("Notification scheduled successfully")
+                toast.success("Notification scheduled successfully")
                 setShowCreateNotification(false)
                 fetchData()
                 // Reset form
@@ -118,16 +119,18 @@ export const NotificationsManagement = () => {
                 setNotifPriority("")
                 setNotifScheduleDate("")
                 setNotifScheduleTime("")
+            } else {
+                toast.error(response.message || "Failed to schedule notification")
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error scheduling notification:", error)
-            alert("Failed to schedule notification")
+            toast.error(error?.message || "Failed to schedule notification")
         }
     }
 
     const handleCreateCoupon = async () => {
         if (!couponCode || !rewardValue || !validFrom || !validUntil || !usageLimit || !outletId) {
-            alert("Please fill in all required fields")
+            toast.error("Please fill in all required fields")
             return
         }
 
@@ -146,7 +149,7 @@ export const NotificationsManagement = () => {
                 outletId: typeof outletId === 'string' ? parseInt(outletId) : outletId
             })
 
-            alert("Coupon created successfully")
+            toast.success("Coupon created successfully")
             setShowCreateCoupon(false)
             // Reset form
             setCouponCode("")
@@ -161,17 +164,18 @@ export const NotificationsManagement = () => {
             await fetchData()
         } catch (error: any) {
             console.error("Error creating coupon:", error)
-            alert(error?.message || "Failed to create coupon")
+            toast.error(error?.message || "Failed to create coupon")
         }
     }
 
     const handleDeleteNotification = async (id: number) => {
         try {
             await notificationService.cancelNotification(id)
+            toast.success("Notification deleted successfully")
             await fetchData()
         } catch (error) {
             console.error("Error deleting notification:", error)
-            alert("Failed to delete notification")
+            toast.error("Failed to delete notification")
         }
     }
 
@@ -182,11 +186,11 @@ export const NotificationsManagement = () => {
 
         try {
             await notificationService.deleteCoupon(id)
-            alert("Coupon deleted successfully")
+            toast.success("Coupon deleted successfully")
             await fetchData()
         } catch (error) {
             console.error("Error deleting coupon:", error)
-            alert("Failed to delete coupon")
+            toast.error("Failed to delete coupon")
         }
     }
 
@@ -209,28 +213,36 @@ export const NotificationsManagement = () => {
             ),
         },
         {
-            accessorKey: "targetAudience",
-            header: "AUDIENCE",
-            cell: ({ row }) => (
-                <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
-                    {row.getValue("targetAudience")}
-                </Badge>
-            ),
+            accessorKey: "priority",
+            header: "PRIORITY",
+            cell: ({ row }) => {
+                const priority = row.getValue("priority") as string
+                const priorityColors = {
+                    high: "bg-red-100 text-red-800 hover:bg-red-100",
+                    medium: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100",
+                    low: "bg-blue-100 text-blue-800 hover:bg-blue-100"
+                }
+                return (
+                    <Badge className={priorityColors[priority?.toLowerCase() as keyof typeof priorityColors] || "bg-gray-100 text-gray-800 hover:bg-gray-100"}>
+                        {priority?.toUpperCase() || 'N/A'}
+                    </Badge>
+                )
+            },
         },
         {
-            accessorKey: "scheduledFor",
+            accessorKey: "createdAt",
             header: "SCHEDULED AT",
-            cell: ({ row }) => formatDateTime(row.getValue("scheduledFor"))
+            cell: ({ row }) => formatDateTime(row.getValue("createdAt"))
         },
         {
-            accessorKey: "status",
+            accessorKey: "isSent",
             header: "STATUS",
             cell: ({ row }) => {
-                const status = row.getValue("status") as string
-                const variant = status === "SENT" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                const isSent = row.getValue("isSent") as boolean
+                const variant = isSent ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
                 return (
                     <Badge className={`${variant} hover:${variant}`}>
-                        {status}
+                        {isSent ? "SENT" : "NOT SENT"}
                     </Badge>
                 )
             },
@@ -262,16 +274,22 @@ export const NotificationsManagement = () => {
             ),
         },
         {
-            accessorKey: "discountValue",
+            accessorKey: "rewardValue",
             header: "REWARD",
-            cell: ({ row }) => (
-                <span className="font-semibold">{row.getValue("discountValue")}%</span>
-            ),
+            cell: ({ row }) => {
+                const value = row.getValue("rewardValue"); // e.g. 0.15
+
+                return (
+                    <span className="font-semibold">
+                        {value * 100}%
+                    </span>
+                );
+            },
         },
         {
-            accessorKey: "minOrderAmount",
+            accessorKey: "minOrderValue",
             header: "MIN ORDER",
-            cell: ({ row }) => `₹${row.getValue("minOrderAmount") || 0}`
+            cell: ({ row }) => `₹${row.getValue("minOrderValue") || 0}`
         },
         {
             accessorKey: "validUntil",
