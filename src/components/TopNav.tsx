@@ -44,11 +44,18 @@ export const TopNav = () => {
 
     return (
         <div className="bg-card border-b border-border px-6 py-3 sticky top-0 z-50 shadow-sm flex items-center justify-between">
-            <div className="flex items-center gap-1">
-                {/* Logo or Brand could go here */}
-                {/* <div className="mr-8 font-bold text-xl flex items-center gap-2">
-                    <span>⚡</span> <span>HungerBox Admin</span>
-                </div> */}
+            <div className="flex items-center gap-4">
+                {/* User Profile Info */}
+                <div className="relative flex items-center gap-1.5">
+                {/* Initials */}
+                <span className="text-primary-foreground font-bold text-xs">
+                    {user?.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'AD'}
+                </span>
+                
+                {/* Status Dot */}
+                <div className="w-2.5 h-2.5 rounded-full bg-green-500 border border-background animate-pulse"></div>
+            </div>
+
 
                 <nav className="flex items-center gap-2">
                     {tabs.map((tab) => (
@@ -91,11 +98,6 @@ export const TopNav = () => {
                     </div>
                 )}
 
-                {/* User Profile or other global controls can go here if removed from Sidebar */}
-                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                    {user?.name || 'User'}
-                </div>
             </div>
         </div>
     );

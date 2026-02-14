@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react"
+import type { ColumnDef } from "@tanstack/react-table"
 import { formatDate } from "../lib/dateUtils"
 import { Input } from "../components/ui/input"
+import { DataTable } from "../components/ui/data-table"
 import {
     Select,
     SelectContent,
@@ -12,8 +14,43 @@ import { Download, RefreshCw, Search, Loader2 } from "lucide-react"
 import { useOutlet } from "../context/OutletContext"
 import { reportService } from "../services"
 import type { AnalyticsParams } from "../types/api"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 
 type ReportTab = "sales" | "revenue" | "profit" | "customers"
+
+// --- Types ---
+interface SalesRow {
+    productName: string
+    category: string
+    quantity: number
+    revenue: number
+    totalOrders: number
+}
+
+interface RevenueRow {
+    source: string
+    category: string
+    amount: number
+    percentage: string | number
+    transactions: number
+}
+
+interface ProfitRow {
+    month: string
+    revenue: number
+    expenses: number
+    profit: number
+    margin: number
+}
+
+interface CustomerRow {
+    name: string
+    customerName: string
+    orders: number
+    totalSpent: number
+    lastOrder: string
+    status: string
+}
 
 export const ReportsAnalytics = () => {
     const { outletId } = useOutlet()
@@ -23,10 +60,10 @@ export const ReportsAnalytics = () => {
     const [searchQuery, setSearchQuery] = useState("")
     const [selectedYear, setSelectedYear] = useState("2026")
 
-    const [salesData, setSalesData] = useState<any[]>([])
-    const [revenueData, setRevenueData] = useState<any[]>([])
-    const [profitData, setProfitData] = useState<any[]>([])
-    const [customerData, setCustomerData] = useState<any[]>([])
+    const [salesData, setSalesData] = useState<SalesRow[]>([])
+    const [revenueData, setRevenueData] = useState<RevenueRow[]>([])
+    const [profitData, setProfitData] = useState<ProfitRow[]>([])
+    const [customerData, setCustomerData] = useState<CustomerRow[]>([])
     const [loading, setLoading] = useState(true)
 
     const tabs = [
@@ -42,7 +79,7 @@ export const ReportsAnalytics = () => {
         if (outletId) {
             fetchData()
         }
-    }, [outletId, activeTab, selectedYear]) // Added selectedYear to dependencies
+    }, [outletId, activeTab, selectedYear])
 
     const fetchData = async () => {
         if (!outletId) return
@@ -54,11 +91,9 @@ export const ReportsAnalytics = () => {
                 to: `${selectedYear}-12-31`,
             }
 
-            // Fetch data based on active tab
             switch (activeTab) {
                 case "sales":
                     const salesRes = await reportService.getSalesReport(outletId, params)
-                    // Fix: Handle array response directly (API returns [{},{},...])
                     if (Array.isArray(salesRes)) {
                         setSalesData(salesRes)
                     } else if (salesRes?.data && Array.isArray(salesRes.data)) {
@@ -70,12 +105,11 @@ export const ReportsAnalytics = () => {
 
                 case "revenue":
                     const revenueRes = await reportService.getRevenueSplit(outletId, params)
-                    // Check for nested data or direct object
                     const revenueRaw = (revenueRes as any).data || revenueRes
 
                     if (revenueRaw) {
                         const total = revenueRaw.totalRevenue || 0
-                        const revenueArray = [
+                        const revenueArray: RevenueRow[] = [
                             {
                                 source: "App Orders",
                                 category: "Online",
@@ -103,11 +137,9 @@ export const ReportsAnalytics = () => {
                     break
 
                 case "profit":
-                    // Profit/loss endpoint requires year instead of from/to
                     const profitParams = { year: parseInt(selectedYear) }
                     const profitRes = await reportService.getProfitLossTrends(outletId, profitParams)
 
-                    // Fix: Handle array response directly
                     if (Array.isArray(profitRes)) {
                         setProfitData(profitRes)
                     } else if (profitRes?.data && Array.isArray(profitRes.data)) {
@@ -122,7 +154,7 @@ export const ReportsAnalytics = () => {
                     const customerRaw = (customerRes as any).data || customerRes
 
                     if (customerRaw) {
-                        const customerArray = [
+                        const customerArray: CustomerRow[] = [
                             {
                                 name: "New Customers",
                                 customerName: "New Customers",
@@ -153,8 +185,6 @@ export const ReportsAnalytics = () => {
 
     // Filter sales data
     const filteredSalesData = salesData.filter((item) => {
-        // If API doesn't return category, this will fail unless filter is "All".
-        // item.category check added to prevent crashes if undefined
         const matchesCategory = categoryFilter === "All" || (item.category && item.category === categoryFilter)
         const matchesSearch = searchQuery === "" || item.productName?.toLowerCase().includes(searchQuery.toLowerCase())
         return matchesCategory && matchesSearch
@@ -231,6 +261,133 @@ export const ReportsAnalytics = () => {
         }
     }
 
+    // --- Column Definitions ---
+
+    const salesColumns: ColumnDef<SalesRow>[] = [
+        {
+            accessorKey: "productName",
+            header: "Product",
+            cell: ({ row }) => <span className="text-foreground font-medium">{row.getValue("productName") || 'N/A'}</span>,
+        },
+        {
+            accessorKey: "category",
+            header: "Category",
+            cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("category") || 'N/A'}</span>,
+        },
+        {
+            id: "price",
+            header: "Price",
+            cell: ({ row }) => {
+                const qty = row.original.quantity
+                const rev = row.original.revenue
+                return <span className="text-green-500 font-medium">₹{qty > 0 ? (rev / qty).toFixed(2) : '0.00'}</span>
+            },
+        },
+        {
+            accessorKey: "totalOrders",
+            header: "Orders",
+            cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("totalOrders") || 0}</span>,
+        },
+        {
+            accessorKey: "revenue",
+            header: "Revenue",
+            cell: ({ row }) => <span className="text-green-500 font-semibold">₹{((row.getValue("revenue") as number) || 0).toLocaleString()}</span>,
+        },
+    ]
+
+    const revenueColumns: ColumnDef<RevenueRow>[] = [
+        {
+            accessorKey: "source",
+            header: "Source",
+            cell: ({ row }) => <span className="text-foreground font-medium">{row.getValue("source") || 'N/A'}</span>,
+        },
+        {
+            accessorKey: "category",
+            header: "Category",
+            cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("category") || 'N/A'}</span>,
+        },
+        {
+            accessorKey: "amount",
+            header: "Amount",
+            cell: ({ row }) => <span className="text-green-500 font-semibold">₹{((row.getValue("amount") as number) || 0).toLocaleString()}</span>,
+        },
+        {
+            accessorKey: "percentage",
+            header: "Percentage",
+            cell: ({ row }) => <span className="text-blue-500">{row.getValue("percentage") || 0}%</span>,
+        },
+        {
+            accessorKey: "transactions",
+            header: "Transactions",
+            cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("transactions") || 0}</span>,
+        },
+    ]
+
+    const profitColumns: ColumnDef<ProfitRow>[] = [
+        {
+            accessorKey: "month",
+            header: "Month",
+            cell: ({ row }) => <span className="text-foreground font-medium">{row.getValue("month") || 'N/A'}</span>,
+        },
+        {
+            accessorKey: "revenue",
+            header: "Revenue",
+            cell: ({ row }) => <span className="text-green-500 font-medium">₹{((row.getValue("revenue") as number) || 0).toLocaleString()}</span>,
+        },
+        {
+            accessorKey: "expenses",
+            header: "Expenses",
+            cell: ({ row }) => <span className="text-red-500 font-medium">₹{((row.getValue("expenses") as number) || 0).toLocaleString()}</span>,
+        },
+        {
+            accessorKey: "profit",
+            header: "Profit/Loss",
+            cell: ({ row }) => {
+                const profit = (row.getValue("profit") as number) || 0
+                return <span className={`font-semibold ${profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>₹{profit.toLocaleString()}</span>
+            },
+        },
+        {
+            accessorKey: "margin",
+            header: "Margin",
+            cell: ({ row }) => <span className="text-blue-500">{row.getValue("margin") || 0}%</span>,
+        },
+    ]
+
+    const customerColumns: ColumnDef<CustomerRow>[] = [
+        {
+            accessorKey: "name",
+            header: "Customer",
+            cell: ({ row }) => <span className="text-foreground font-medium">{row.original.name || row.original.customerName || 'N/A'}</span>,
+        },
+        {
+            accessorKey: "orders",
+            header: "Orders",
+            cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("orders") || 0}</span>,
+        },
+        {
+            accessorKey: "totalSpent",
+            header: "Total Spent",
+            cell: ({ row }) => <span className="text-green-500 font-semibold">₹{((row.getValue("totalSpent") as number) || 0).toLocaleString()}</span>,
+        },
+        {
+            accessorKey: "lastOrder",
+            header: "Last Order",
+            cell: ({ row }) => {
+                const val = row.getValue("lastOrder") as string
+                return <span className="text-muted-foreground">{val && val !== '-' ? formatDate(val) : 'N/A'}</span>
+            },
+        },
+        {
+            accessorKey: "status",
+            header: "Status",
+            cell: ({ row }) => {
+                const status = (row.getValue("status") as string) || 'Active'
+                return <span className={`font-medium ${getStatusColor(status)}`}>{status}</span>
+            },
+        },
+    ]
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -253,233 +410,86 @@ export const ReportsAnalytics = () => {
                 </button>
             </div>
 
-            {/* Tab Navigation */}
-            <div className="flex gap-1 bg-muted/50 p-1 rounded-xl w-fit">
-                {tabs.map((tab) => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === tab.id
-                            ? "bg-card text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
-                            }`}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
-            </div>
+            <Tabs defaultValue="sales" onValueChange={(val) => setActiveTab(val as ReportTab)} value={activeTab} className="w-full space-y-6">
+                {/* Tab Navigation */}
+                <TabsList className="grid w-full max-w-2xl grid-cols-4 h-12">
+                    {tabs.map((tab) => (
+                        <TabsTrigger key={tab.id} value={tab.id}>
+                            {tab.label}
+                        </TabsTrigger>
+                    ))}
+                </TabsList>
 
-            {/* Filters Row */}
-            <div className="flex items-center gap-4 flex-wrap">
-                {activeTab === "sales" && (
-                    <>
-                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                            <SelectTrigger className="w-[150px] bg-yellow-100 dark:bg-yellow-900/30 border-2 border-yellow-200 dark:border-yellow-700 text-foreground rounded-xl">
-                                <SelectValue placeholder="All Categories" />
+                {/* Shared Filters Row (Outside TabsContent if common, or inside if specific) */}
+                {/* In this case, filters vary by tab, so we keep them in a shared row but conditionally rendered */}
+                <div className="flex items-center gap-4 flex-wrap">
+                    {activeTab === "sales" && (
+                        <>
+                            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                                <SelectTrigger className="w-[180px] border-0 focus:ring-0 h-11 px-4 rounded-xl shadow-sm border border-border/50">
+                                    <SelectValue placeholder="All Categories" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {categories.map((cat) => (
+                                        <SelectItem key={cat} value={cat}>
+                                            {cat === "All" ? "All Categories" : cat}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            <div className="relative flex-1 max-w-md">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input
+                                    type="text"
+                                    placeholder="Search item"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="pl-10 h-11 rounded-xl border-border"
+                                />
+                            </div>
+                        </>
+                    )}
+
+                    {activeTab === "profit" && (
+                        <Select value={selectedYear} onValueChange={setSelectedYear}>
+                            <SelectTrigger className="w-[120px] bg-yellow-100 dark:bg-yellow-900/30 border-2 border-yellow-200 dark:border-yellow-700 text-foreground rounded-xl">
+                                <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                {categories.map((cat) => (
-                                    <SelectItem key={cat} value={cat}>
-                                        {cat === "All" ? "All Categories" : cat}
-                                    </SelectItem>
-                                ))}
+                                <SelectItem value="2024">2024</SelectItem>
+                                <SelectItem value="2025">2025</SelectItem>
+                                <SelectItem value="2026">2026</SelectItem>
                             </SelectContent>
                         </Select>
+                    )}
 
-                        <div className="relative flex-1 max-w-md">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <Input
-                                type="text"
-                                placeholder="Search item"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-10 h-10 rounded-xl border-border"
-                            />
-                        </div>
-                    </>
-                )}
-
-                {activeTab === "profit" && (
-                    <Select value={selectedYear} onValueChange={setSelectedYear}>
-                        <SelectTrigger className="w-[120px] bg-yellow-100 dark:bg-yellow-900/30 border-2 border-yellow-200 dark:border-yellow-700 text-foreground rounded-xl">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="2024">2024</SelectItem>
-                            <SelectItem value="2025">2025</SelectItem>
-                            <SelectItem value="2026">2026</SelectItem>
-                        </SelectContent>
-                    </Select>
-                )}
-
-                <button
-                    onClick={fetchData}
-                    className="px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 bg-card border border-border text-foreground hover:bg-muted transition-colors"
-                >
-                    <RefreshCw className="w-4 h-4" />
-                    Refresh
-                </button>
-            </div>
-
-            {/* Sales Table */}
-            {activeTab === "sales" && (
-                <div className="bg-card rounded-2xl border border-border overflow-hidden">
-                    <div className="p-4 border-b border-border">
-                        <h2 className="text-lg font-semibold text-foreground">Current Sales Status</h2>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b border-border">
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Product</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Category</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Price</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Orders</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Revenue</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredSalesData.length > 0 ? filteredSalesData.map((item, idx) => (
-                                    <tr key={idx} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                                        <td className="px-6 py-4 text-foreground">{item.productName || 'N/A'}</td>
-                                        <td className="px-6 py-4 text-muted-foreground">{item.category || 'N/A'}</td>
-                                        <td className="px-6 py-4 text-green-500 font-medium">₹{item.quantity > 0 ? (item.revenue / item.quantity).toFixed(2) : '0.00'}</td>
-                                        <td className="px-6 py-4 text-muted-foreground">{item.totalOrders || 0}</td>
-                                        <td className="px-6 py-4 text-green-500 font-semibold">₹{(item.revenue || 0).toLocaleString()}</td>
-                                    </tr>
-                                )) : (
-                                    <tr>
-                                        <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">No sales data available</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div className="p-4 border-t border-border flex items-center justify-between">
-                        <span className="text-sm text-green-500">Showing {filteredSalesData.length} results</span>
-                    </div>
+                    <button
+                        onClick={fetchData}
+                        className="px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 bg-card border border-border text-foreground hover:bg-muted transition-colors"
+                    >
+                        <RefreshCw className="w-4 h-4" />
+                        Refresh
+                    </button>
                 </div>
-            )}
 
-            {/* Revenue Analytics Table */}
-            {activeTab === "revenue" && (
-                <div className="bg-card rounded-2xl border border-border overflow-hidden">
-                    <div className="p-4 border-b border-border">
-                        <h2 className="text-lg font-semibold text-foreground">Revenue by Source</h2>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b border-border">
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Source</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Category</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Amount</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Percentage</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Transactions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredRevenueData.length > 0 ? filteredRevenueData.map((item, idx) => (
-                                    <tr key={idx} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                                        <td className="px-6 py-4 text-foreground">{item.source || 'N/A'}</td>
-                                        <td className="px-6 py-4 text-muted-foreground">{item.category || 'N/A'}</td>
-                                        <td className="px-6 py-4 text-green-500 font-semibold">₹{(item.amount || 0).toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-blue-500">{item.percentage || 0}%</td>
-                                        <td className="px-6 py-4 text-muted-foreground">{item.transactions || 0}</td>
-                                    </tr>
-                                )) : (
-                                    <tr>
-                                        <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">No revenue data available</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div className="p-4 border-t border-border flex items-center justify-between">
-                        <span className="text-sm text-green-500">Showing {filteredRevenueData.length} results</span>
-                    </div>
-                </div>
-            )}
+                {/* Data Tables wrapped in Content */}
+                <TabsContent value="sales">
+                    <DataTable columns={salesColumns} data={filteredSalesData} pageSize={10} />
+                </TabsContent>
 
-            {/* Profit/Loss Report Table */}
-            {activeTab === "profit" && (
-                <div className="bg-card rounded-2xl border border-border overflow-hidden">
-                    <div className="p-4 border-b border-border">
-                        <h2 className="text-lg font-semibold text-foreground">Profit/Loss Trends - {selectedYear}</h2>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b border-border">
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Month</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Revenue</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Expenses</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Profit/Loss</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Margin</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {profitData.length > 0 ? profitData.map((item, idx) => (
-                                    <tr key={idx} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                                        <td className="px-6 py-4 text-foreground">{item.month || 'N/A'}</td>
-                                        <td className="px-6 py-4 text-green-500 font-medium">₹{(item.revenue || 0).toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-red-500 font-medium">₹{(item.expenses || 0).toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-green-500 font-semibold">₹{(item.profit || 0).toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-blue-500">{item.margin || 0}%</td>
-                                    </tr>
-                                )) : (
-                                    <tr>
-                                        <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">No profit/loss data available</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div className="p-4 border-t border-border flex items-center justify-between">
-                        <span className="text-sm text-green-500">Showing {profitData.length} results</span>
-                    </div>
-                </div>
-            )}
+                <TabsContent value="revenue">
+                    <DataTable columns={revenueColumns} data={filteredRevenueData} pageSize={10} />
+                </TabsContent>
 
-            {/* Customer Trends Table */}
-            {activeTab === "customers" && (
-                <div className="bg-card rounded-2xl border border-border overflow-hidden">
-                    <div className="p-4 border-b border-border">
-                        <h2 className="text-lg font-semibold text-foreground">Customer Overview</h2>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b border-border">
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Customer</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Orders</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Total Spent</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Last Order</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredCustomerData.length > 0 ? filteredCustomerData.map((item, idx) => (
-                                    <tr key={idx} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                                        <td className="px-6 py-4 text-foreground">{item.name || item.customerName || 'N/A'}</td>
-                                        <td className="px-6 py-4 text-muted-foreground">{item.orders || item.totalOrders || 0}</td>
-                                        <td className="px-6 py-4 text-green-500 font-semibold">₹{(item.totalSpent || 0).toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-muted-foreground">{item.lastOrder ? formatDate(item.lastOrder) : 'N/A'}</td>
-                                        <td className={`px-6 py-4 font-medium ${getStatusColor(item.status || 'Active')}`}>{item.status || 'Active'}</td>
-                                    </tr>
-                                )) : (
-                                    <tr>
-                                        <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">No customer data available</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div className="p-4 border-t border-border flex items-center justify-between">
-                        <span className="text-sm text-green-500">Showing {filteredCustomerData.length} results</span>
-                    </div>
-                </div>
-            )}
+                <TabsContent value="profit">
+                    <DataTable columns={profitColumns} data={profitData} pageSize={12} />
+                </TabsContent>
+
+                <TabsContent value="customers">
+                    <DataTable columns={customerColumns} data={filteredCustomerData} pageSize={10} />
+                </TabsContent>
+            </Tabs>
         </div>
     )
 }

@@ -69,7 +69,7 @@ export const ProductManagement = () => {
         if (!outletId) return
         try {
             setLoading(true)
-            const response = await productService.getProducts(outletId)
+            const response = await productService.getProducts(outletId === "ALL" ? 0 : outletId)
             console.log("🍴 Products Response:", response)
             if (response.success && response.data) {
                 setProducts(response.data)
@@ -114,7 +114,7 @@ export const ProductManagement = () => {
                 description: formData.description,
                 price: parseFloat(formData.price),
                 category: formData.category,
-                outletId: outletId,
+                outletId: outletId === "ALL" ? 0 : outletId,
                 threshold: parseInt(formData.threshold) || 10,
                 minValue: parseInt(formData.minValue) || 0,
                 isVeg: formData.isVeg,
@@ -157,7 +157,7 @@ export const ProductManagement = () => {
                 category: formData.category,
                 imageUrl: formData.imageUrl || "",
                 // Include missing required fields
-                outletId: outletId,
+                outletId: outletId === "ALL" ? 0 : outletId,
                 // Include other editable fields
                 threshold: parseInt(formData.threshold) || 10,
                 minValue: parseInt(formData.minValue) || 0,
@@ -277,7 +277,7 @@ export const ProductManagement = () => {
                     <Textarea
                         value={formData.description}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        placeholder="Describe your product..."
+                        placeholder="Product description..."
                         className="mt-1.5 min-h-[80px] resize-none"
                     />
                 </div>
@@ -398,18 +398,18 @@ export const ProductManagement = () => {
     }
 
     return (
-        <div className="space-y-8 p-8 max-w-[1600px] mx-auto">
+        <div className="space-y-6">
             {/* Header */}
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Product Management</h1>
-                <p className="text-muted-foreground mt-2">Manage your product inventory, pricing, and details.</p>
+            <div className="flex flex-col gap-1">
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">Product Management</h1>
+                <p className="text-muted-foreground">Manage product inventory, pricing, and details</p>
             </div>
 
             {/* Filters and Add Button */}
-            <div className="flex items-center justify-between gap-4 p-1 bg-muted/50 rounded-2xl border border-border">
-                <div className="flex items-center gap-2 p-1">
+            <div className="flex items-center justify-between gap-4">
+                <div className="bg-card rounded-xl shadow-sm border border-border/50 h-11 px-4 flex items-center">
                     <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                        <SelectTrigger className="w-[180px] bg-background border-border shadow-sm">
+                        <SelectTrigger className="w-[180px] border-0 focus:ring-0 h-full p-0">
                             <SelectValue placeholder="All Categories" />
                         </SelectTrigger>
                         <SelectContent>
@@ -427,14 +427,14 @@ export const ProductManagement = () => {
                         resetForm()
                         setIsAddDialogOpen(true)
                     }}
-                    className="shadow-sm"
+                    className="rounded-xl h-11 px-6 shadow-sm border border-border/10"
                 >
                     + Add New Product
                 </Button>
             </div>
 
             {/* Products Section */}
-            <div className="bg-muted/30 border border-border/50 rounded-3xl p-8 min-h-[500px]">
+            <div>
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-lg font-semibold flex items-center gap-2">
                         All Products
@@ -444,7 +444,7 @@ export const ProductManagement = () => {
                     </h2>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {filteredProducts.map((product) => (
                         <ProductCard
                             key={product.id}
@@ -473,7 +473,6 @@ export const ProductManagement = () => {
                     </div>
                 )}
             </div>
-
             {/* Add Product Dialog */}
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">

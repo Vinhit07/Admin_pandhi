@@ -221,198 +221,200 @@ export const ExpenditureManagement = () => {
 
     return (
         <div className="space-y-6">
-            {/* Tabs Container */}
-            <div className="bg-sidebar border-2 border-sidebar-border rounded-3xl p-6 shadow-lg">
-                <Tabs defaultValue="tracker" className="w-full">
-                    <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
-                        <TabsTrigger value="tracker">Expense Tracker</TabsTrigger>
-                        <TabsTrigger value="add">Add Expense</TabsTrigger>
-                    </TabsList>
+            <div className="flex flex-col gap-1">
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">Expenditure Management</h1>
+                <p className="text-muted-foreground">Track and manage business expenditures</p>
+            </div>
+            {/* Removed the heavy outer container and kept the Tabs structure flat */}
+            <Tabs defaultValue="tracker" className="w-full">
+                <TabsList className="grid w-full max-w-md grid-cols-2 mb-6 h-12">
+                    <TabsTrigger value="tracker" className="rounded-lg">Expense Tracker</TabsTrigger>
+                    <TabsTrigger value="add" className="rounded-lg">Add Expense</TabsTrigger>
+                </TabsList>
 
-                    {/* Expense Tracker Tab */}
-                    <TabsContent value="tracker" className="space-y-6">
-                        {/* Filters */}
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div className="flex items-center gap-4">
-                                <div className="bg-card border-2 border-border rounded-full px-4 py-2 shadow-sm flex items-center gap-2">
-                                    <span className="text-sm text-muted-foreground">From</span>
-                                    <Input
-                                        type="date"
-                                        value={fromDate}
-                                        onChange={(e) => setFromDate(e.target.value)}
-                                        className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent w-auto h-auto p-0"
-                                    />
-                                </div>
+                {/* Expense Tracker Tab */}
+                <TabsContent value="tracker" className="space-y-6">
+                    {/* Filters */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 h-11 px-4">
+                                <span className="text-sm text-muted-foreground whitespace-nowrap">From</span>
+                                <Input
+                                    type="date"
+                                    value={fromDate}
+                                    onChange={(e) => setFromDate(e.target.value)}
+                                    className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent w-auto h-full p-0"
+                                />
+                            </div>
 
-                                <div className="bg-card border-2 border-border rounded-full px-4 py-2 shadow-sm flex items-center gap-2">
-                                    <span className="text-sm text-muted-foreground">To</span>
-                                    <Input
-                                        type="date"
-                                        value={toDate}
-                                        onChange={(e) => setToDate(e.target.value)}
-                                        className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent w-auto h-auto p-0"
-                                    />
-                                </div>
+                            <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 h-11 px-4">
+                                <span className="text-sm text-muted-foreground whitespace-nowrap">To</span>
+                                <Input
+                                    type="date"
+                                    value={toDate}
+                                    onChange={(e) => setToDate(e.target.value)}
+                                    className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent w-auto h-full p-0"
+                                />
+                            </div>
 
-                                <Button variant="outline" onClick={handleClear} className="rounded-full">
+                            <div className="flex gap-2">
+                                <Button variant="outline" onClick={handleClear} className="rounded-xl h-11 px-4 shadow-sm border-border/50">
                                     Clear
                                 </Button>
-                                <Button variant="outline" onClick={fetchData} className="rounded-full" title="Refresh Data">
+                                <Button variant="outline" onClick={fetchData} className="rounded-xl h-11 px-4 shadow-sm border-border/50" title="Refresh Data">
                                     <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
                                 </Button>
                             </div>
+                        </div>
 
-                            {/* Search */}
-                            <div className="bg-card border-2 border-border rounded-full px-4 py-2 shadow-sm flex items-center gap-2 w-full md:w-64">
-                                <Search size={20} className="text-muted-foreground" />
+                        {/* Search */}
+                        <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 w-full md:w-64 h-11 px-4">
+                            <Search size={18} className="text-muted-foreground shrink-0" />
+                            <Input
+                                placeholder="Search expenses..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-full p-0"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Stats Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <Card className="rounded-xl border border-border/50 shadow-sm">
+                            <CardContent className="p-6">
+                                <p className="text-sm text-muted-foreground mb-2">Total revenue</p>
+                                <p className="text-3xl font-bold text-primary">₹{stats.totalRevenue.toLocaleString()}</p>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="rounded-xl border border-border/50 shadow-sm">
+                            <CardContent className="p-6">
+                                <p className="text-sm text-muted-foreground mb-2">Total expenses</p>
+                                <p className="text-3xl font-bold text-destructive">₹{totalExpensesAmount.toLocaleString()}</p>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="rounded-xl border border-border/50 shadow-sm">
+                            <CardContent className="p-6">
+                                <p className="text-sm text-muted-foreground mb-2">Net profit</p>
+                                <p className={`text-3xl font-bold ${stats.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    ₹{(stats.totalRevenue - totalExpensesAmount).toLocaleString()}
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="rounded-xl border border-border/50 shadow-sm">
+                            <CardContent className="p-6">
+                                <p className="text-sm text-muted-foreground mb-2">Total orders</p>
+                                <p className="text-3xl font-bold text-primary">{stats.totalOrders}</p>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Expense Tracker Table */}
+                    <DataTable columns={expenseColumns} data={filteredExpenses} pageSize={50} />
+                    {filteredExpenses.length === 0 && !loading && (
+                        <div className="text-center py-10 text-muted-foreground">
+                            No expenses found.
+                        </div>
+                    )}
+                </TabsContent>
+
+                {/* Add Expense Tab */}
+                <TabsContent value="add" className="space-y-6">
+                    <div className="max-w-3xl mx-auto bg-card p-6 rounded-2xl border shadow-sm">
+                        <h3 className="text-xl font-semibold mb-6">Add New Expense</h3>
+
+                        {/* Form Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Date *</label>
                                 <Input
-                                    placeholder="Search expenses..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-auto p-0"
+                                    type="date"
+                                    value={expenseDate}
+                                    onChange={(e) => setExpenseDate(e.target.value)}
+                                    className="rounded-xl"
                                 />
                             </div>
-                        </div>
 
-                        {/* Stats Cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                            <Card className="rounded-2xl border-2 shadow-sm">
-                                <CardContent className="p-6">
-                                    <p className="text-sm text-muted-foreground mb-2">Total revenue</p>
-                                    <p className="text-3xl font-bold text-primary">₹{stats.totalRevenue.toLocaleString()}</p>
-                                </CardContent>
-                            </Card>
-
-                            <Card className="rounded-2xl border-2 shadow-sm">
-                                <CardContent className="p-6">
-                                    <p className="text-sm text-muted-foreground mb-2">Total expenses</p>
-                                    <p className="text-3xl font-bold text-destructive">₹{totalExpensesAmount.toLocaleString()}</p>
-                                </CardContent>
-                            </Card>
-
-                            <Card className="rounded-2xl border-2 shadow-sm">
-                                <CardContent className="p-6">
-                                    <p className="text-sm text-muted-foreground mb-2">Net profit</p>
-                                    <p className={`text-3xl font-bold ${stats.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                        ₹{(stats.totalRevenue - totalExpensesAmount).toLocaleString()}
-                                    </p>
-                                </CardContent>
-                            </Card>
-
-                            <Card className="rounded-2xl border-2 shadow-sm">
-                                <CardContent className="p-6">
-                                    <p className="text-sm text-muted-foreground mb-2">Total orders</p>
-                                    <p className="text-3xl font-bold text-primary">{stats.totalOrders}</p>
-                                </CardContent>
-                            </Card>
-                        </div>
-
-                        {/* Expense Tracker Table */}
-                        <div className="rounded-md border">
-                            <DataTable columns={expenseColumns} data={filteredExpenses} pageSize={50} />
-                            {filteredExpenses.length === 0 && !loading && (
-                                <div className="text-center py-10 text-muted-foreground">
-                                    No expenses found.
-                                </div>
-                            )}
-                        </div>
-                    </TabsContent>
-
-                    {/* Add Expense Tab */}
-                    <TabsContent value="add" className="space-y-6">
-                        <div className="max-w-3xl mx-auto bg-card p-6 rounded-2xl border shadow-sm">
-                            <h3 className="text-xl font-semibold mb-6">Add New Expense</h3>
-
-                            {/* Form Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Date *</label>
-                                    <Input
-                                        type="date"
-                                        value={expenseDate}
-                                        onChange={(e) => setExpenseDate(e.target.value)}
-                                        className="rounded-xl"
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Category *</label>
-                                    <Select value={category} onValueChange={setCategory}>
-                                        <SelectTrigger className="rounded-xl">
-                                            <SelectValue placeholder="Select Category" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Transport">Transport</SelectItem>
-                                            <SelectItem value="Shopping">Shopping</SelectItem>
-                                            <SelectItem value="Utilities">Utilities</SelectItem>
-                                            <SelectItem value="Supplies">Supplies</SelectItem>
-                                            <SelectItem value="Salaries">Salaries</SelectItem>
-                                            <SelectItem value="Maintenance">Maintenance</SelectItem>
-                                            <SelectItem value="Rent">Rent</SelectItem>
-                                            <SelectItem value="Other">Other</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                <div className="space-y-2 md:col-span-2">
-                                    <label className="text-sm font-medium">Expense Description *</label>
-                                    <Input
-                                        placeholder="Enter description"
-                                        value={description}
-                                        onChange={(e) => setDescription(e.target.value)}
-                                        className="rounded-xl"
-                                    />
-                                </div>
-
-                                <div className="space-y-2 md:col-span-2">
-                                    <label className="text-sm font-medium">Paid To *</label>
-                                    <Input
-                                        placeholder="Enter payee name (e.g., Vendor Name)"
-                                        value={paidTo}
-                                        onChange={(e) => setPaidTo(e.target.value)}
-                                        className="rounded-xl"
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Amount (₹) *</label>
-                                    <Input
-                                        type="number"
-                                        placeholder="Enter amount"
-                                        value={amount}
-                                        onChange={(e) => setAmount(e.target.value)}
-                                        className="rounded-xl"
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Payment Method</label>
-                                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                                        <SelectTrigger className="rounded-xl">
-                                            <SelectValue placeholder="Select Method" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="CASH">Cash</SelectItem>
-                                            <SelectItem value="UPI">UPI</SelectItem>
-                                            <SelectItem value="CARD">Card</SelectItem>
-                                            <SelectItem value="WALLET">Wallet</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Category *</label>
+                                <Select value={category} onValueChange={setCategory}>
+                                    <SelectTrigger className="rounded-xl">
+                                        <SelectValue placeholder="Select Category" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Transport">Transport</SelectItem>
+                                        <SelectItem value="Shopping">Shopping</SelectItem>
+                                        <SelectItem value="Utilities">Utilities</SelectItem>
+                                        <SelectItem value="Supplies">Supplies</SelectItem>
+                                        <SelectItem value="Salaries">Salaries</SelectItem>
+                                        <SelectItem value="Maintenance">Maintenance</SelectItem>
+                                        <SelectItem value="Rent">Rent</SelectItem>
+                                        <SelectItem value="Other">Other</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
 
-                            <div className="flex justify-end gap-4 mt-8">
-                                <Button variant="outline" onClick={handleReset} className="rounded-full px-8">
-                                    Reset
-                                </Button>
-                                <Button onClick={handleAddExpense} className="rounded-full px-8 bg-green-600 hover:bg-green-700">
-                                    Add Expense
-                                </Button>
+                            <div className="space-y-2 md:col-span-2">
+                                <label className="text-sm font-medium">Expense Description *</label>
+                                <Input
+                                    placeholder="Enter description"
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    className="rounded-xl"
+                                />
+                            </div>
+
+                            <div className="space-y-2 md:col-span-2">
+                                <label className="text-sm font-medium">Paid To *</label>
+                                <Input
+                                    placeholder="Enter payee name (e.g., Vendor Name)"
+                                    value={paidTo}
+                                    onChange={(e) => setPaidTo(e.target.value)}
+                                    className="rounded-xl"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Amount (₹) *</label>
+                                <Input
+                                    type="number"
+                                    placeholder="Enter amount"
+                                    value={amount}
+                                    onChange={(e) => setAmount(e.target.value)}
+                                    className="rounded-xl"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Payment Method</label>
+                                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                                    <SelectTrigger className="rounded-xl">
+                                        <SelectValue placeholder="Select Method" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="CASH">Cash</SelectItem>
+                                        <SelectItem value="UPI">UPI</SelectItem>
+                                        <SelectItem value="CARD">Card</SelectItem>
+                                        <SelectItem value="WALLET">Wallet</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
-                    </TabsContent>
-                </Tabs>
-            </div>
+
+                        <div className="flex justify-end gap-4 mt-8">
+                            <Button variant="outline" onClick={handleReset} className="rounded-full px-8">
+                                Reset
+                            </Button>
+                            <Button onClick={handleAddExpense} className="rounded-full px-8 bg-green-600 hover:bg-green-700">
+                                Add Expense
+                            </Button>
+                        </div>
+                    </div>
+                </TabsContent>
+            </Tabs>
         </div>
     )
 }

@@ -212,12 +212,17 @@ export const OrderManagement = () => {
 
     return (
         <div className="space-y-6">
+            <div className="flex flex-col gap-1">
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">Order Management</h1>
+                <p className="text-muted-foreground">Monitor and process incoming orders</p>
+            </div>
+
             {/* Filters and Search - Pill shaped */}
             <div className="flex items-center gap-4">
                 {/* Status Filter */}
-                <div className="bg-sidebar border-2 border-sidebar-border rounded-full px-4 py-2 shadow-md">
+                <div className="bg-card rounded-xl shadow-sm border border-border/50">
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-[180px] border-0 focus:ring-0">
+                        <SelectTrigger className="w-[180px] border-0 focus:ring-0 h-11 px-4">
                             <SelectValue placeholder="All Status" />
                         </SelectTrigger>
                         <SelectContent>
@@ -231,30 +236,28 @@ export const OrderManagement = () => {
                 </div>
 
                 {/* Search - Pill shaped */}
-                <div className="bg-sidebar border-2 border-sidebar-border rounded-full px-4 py-2 shadow-md flex items-center gap-2 flex-1 max-w-md">
-                    <Search size={20} className="text-muted-foreground" />
+                <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 flex-1 max-w-md h-11 px-4">
+                    <Search size={18} className="text-muted-foreground shrink-0" />
                     <Input
                         placeholder="Search by ID or Name"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
+                        className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-full"
                     />
                 </div>
 
-                {/* Refresh Button - Pill shaped */}
+                {/* Refresh Button */}
                 <Button
                     onClick={handleRefresh}
-                    className="rounded-full px-6 shadow-md"
+                    className="rounded-xl h-11 px-6 shadow-sm border border-border/10"
                 >
                     <RefreshCw size={18} className="mr-2" />
                     Refresh
                 </Button>
             </div>
 
-            {/* Data Table - Pill shaped container */}
-            <div className="bg-sidebar border-2 border-sidebar-border rounded-3xl p-6 shadow-lg">
-                <DataTable columns={columns} data={filteredOrders} />
-            </div>
+            {/* Data Table Container */}
+            <DataTable columns={columns} data={filteredOrders} />
 
             {/* Order Details Dialog */}
             <OrderDetailsDialog

@@ -89,7 +89,7 @@ const AdminSignIn: React.FC = () => {
                     <h1 className="text-4xl font-bold text-foreground mb-4">HungerBox Admin</h1>
                     <p className="text-lg text-muted-foreground">
                         {userType === 'admin'
-                            ? 'Manage your outlets, staff, and operations efficiently.'
+                            ? 'Manage outlets, staff, and operations efficiently.'
                             : 'Full system control and oversight for SuperAdmins.'}
                     </p>
                 </div>
@@ -109,7 +109,7 @@ const AdminSignIn: React.FC = () => {
                     <div className="bg-card rounded-xl border-2 border-border p-8 shadow-lg">
                         <div className="text-center mb-6">
                             <h2 className="text-2xl font-bold text-foreground">Admin Portal</h2>
-                            <p className="text-muted-foreground mt-1">Sign in to your account</p>
+                            <p className="text-muted-foreground mt-1">Sign in to account</p>
                         </div>
 
                         {/* User Type Toggle */}
@@ -151,7 +151,7 @@ const AdminSignIn: React.FC = () => {
                                     type="email"
                                     value={formData.email}
                                     onChange={handleChange}
-                                    placeholder={`Enter your ${userType === 'superadmin' ? 'SuperAdmin' : 'Admin'} email`}
+                                    placeholder={`Enter ${userType === 'superadmin' ? 'SuperAdmin' : 'Admin'} email`}
                                     className={`w-full px-4 py-2 bg-background rounded-lg border-2 ${formErrors.email ? 'border-destructive' : 'border-border'
                                         } focus:outline-none focus:ring-2 focus:ring-ring transition`}
                                 />
@@ -171,7 +171,7 @@ const AdminSignIn: React.FC = () => {
                                         type={showPassword ? "text" : "password"}
                                         value={formData.password}
                                         onChange={handleChange}
-                                        placeholder="Enter your password"
+                                        placeholder="Enter password"
                                         className={`w-full px-4 py-2 bg-background rounded-lg border-2 ${formErrors.password ? 'border-destructive' : 'border-border'
                                             } focus:outline-none focus:ring-2 focus:ring-ring transition pr-10`}
                                     />

@@ -336,222 +336,219 @@ export const NotificationsManagement = () => {
 
     return (
         <div className="space-y-6">
-            <div className="bg-sidebar border-2 border-sidebar-border rounded-3xl p-6 shadow-lg">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full max-w-lg grid-cols-3 mb-6">
-                        <TabsTrigger value="notifications">Notifications</TabsTrigger>
-                        <TabsTrigger value="promotion">Promotion</TabsTrigger>
-                        <TabsTrigger value="coupons">Coupons</TabsTrigger>
-                    </TabsList>
-
-                    {/* Notifications Tab */}
-                    <TabsContent value="notifications" className="space-y-6">
-                        {!showCreateNotification ? (
-                            <>
-                                <div className="flex justify-end">
-                                    <Button
-                                        onClick={() => setShowCreateNotification(true)}
-                                        className="rounded-full bg-green-600 hover:bg-green-700"
-                                    >
-                                        Create Notification
-                                    </Button>
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-semibold mb-4">Scheduled Notification</h3>
-                                    <DataTable columns={notificationColumns} data={notifications} />
-                                </div>
-                            </>
-                        ) : (
-                            <div className="space-y-6">
-                                <div className="flex justify-between items-center">
-                                    <h3 className="text-xl font-semibold">Create Notification</h3>
-                                    <Button variant="outline" onClick={() => setShowCreateNotification(false)} className="rounded-full">
-                                        Back
-                                    </Button>
-                                </div>
-                                <div className="bg-card border-2 border-border rounded-3xl p-6">
-                                    <h4 className="text-lg font-semibold mb-6">Create Notification</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium">Title *</label>
-                                            <Input
-                                                placeholder="Enter notification title"
-                                                value={notifTitle}
-                                                onChange={(e) => setNotifTitle(e.target.value)}
-                                                className="rounded-xl"
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium">Priority Type</label>
-                                            <Select value={notifPriority} onValueChange={setNotifPriority}>
-                                                <SelectTrigger className="rounded-xl">
-                                                    <SelectValue placeholder="Select Priority" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="high">High</SelectItem>
-                                                    <SelectItem value="medium">Medium</SelectItem>
-                                                    <SelectItem value="low">Low</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="space-y-2 md:col-span-2">
-                                            <label className="text-sm font-medium">Message *</label>
-                                            <Textarea
-                                                placeholder="Enter notification message"
-                                                value={notifMessage}
-                                                onChange={(e) => setNotifMessage(e.target.value)}
-                                                className="rounded-xl"
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium">Schedule Date</label>
-                                            <Input
-                                                type="date"
-                                                value={notifScheduleDate}
-                                                onChange={(e) => setNotifScheduleDate(e.target.value)}
-                                                className="rounded-xl"
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium">Schedule Time</label>
-                                            <Input
-                                                type="time"
-                                                value={notifScheduleTime}
-                                                onChange={(e) => setNotifScheduleTime(e.target.value)}
-                                                className="rounded-xl"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="flex justify-end gap-4 mt-6">
-                                        <Button variant="destructive" onClick={() => setShowCreateNotification(false)} className="rounded-full">Cancel</Button>
-                                        <Button onClick={handleScheduleNotification} className="rounded-full bg-green-600 hover:bg-green-700">Schedule</Button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </TabsContent>
-
-                    {/* Promotion Tab - Similar to notification but simplified */}
-                    <TabsContent value="promotion" className="space-y-6">
-                        <div className="bg-card border-2 border-border rounded-3xl p-6">
-                            <h3 className="text-lg font-semibold mb-6">Promotion Details</h3>
-                            <p className="text-muted-foreground text-sm mb-4">Use the notifications tab to send promotional messages</p>
-                        </div>
-                    </TabsContent>
-
-                    {/* Coupons Tab */}
-                    <TabsContent value="coupons" className="space-y-6">
-                        {!showCreateCoupon ? (
-                            <>
-                                <div className="flex justify-end">
-                                    <Button
-                                        onClick={() => setShowCreateCoupon(true)}
-                                        className="rounded-full bg-green-600 hover:bg-green-700"
-                                    >
-                                        Create Coupon
-                                    </Button>
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-semibold mb-4">Active Coupons</h3>
-                                    <DataTable columns={couponColumns} data={coupons} />
-                                </div>
-                            </>
-                        ) : (
-                            <div className="space-y-6">
-                                <div className="flex justify-between items-center">
-                                    <h3 className="text-xl font-semibold">Create Coupon</h3>
-                                    <Button variant="outline" onClick={() => setShowCreateCoupon(false)} className="rounded-full">
-                                        Back
-                                    </Button>
-                                </div>
-                                <div className="bg-card border-2 border-border rounded-3xl p-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium">Coupon Code *</label>
-                                            <Input
-                                                placeholder="e.g., SAVE20"
-                                                value={couponCode}
-                                                onChange={(e) => setCouponCode(e.target.value)}
-                                                className="rounded-xl"
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium">Reward Value % *</label>
-                                            <Input
-                                                type="number"
-                                                placeholder="e.g., 20"
-                                                value={rewardValue}
-                                                onChange={(e) => setRewardValue(e.target.value)}
-                                                className="rounded-xl"
-                                            />
-                                        </div>
-                                        <div className="space-y-2 md:col-span-2">
-                                            <label className="text-sm font-medium">Description</label>
-                                            <Textarea
-                                                placeholder="Describe your coupon offer"
-                                                value={couponDescription}
-                                                onChange={(e) => setCouponDescription(e.target.value)}
-                                                className="rounded-xl"
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium">Minimum Order Value ₹</label>
-                                            <Input
-                                                type="number"
-                                                placeholder="e.g., 100"
-                                                value={minOrderValue}
-                                                onChange={(e) => setMinOrderValue(e.target.value)}
-                                                className="rounded-xl"
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium">Usage Limit *</label>
-                                            <Input
-                                                type="number"
-                                                placeholder="e.g., 100"
-                                                value={usageLimit}
-                                                onChange={(e) => setUsageLimit(e.target.value)}
-                                                className="rounded-xl"
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium">Valid From *</label>
-                                            <Input
-                                                type="datetime-local"
-                                                value={validFrom}
-                                                onChange={(e) => setValidFrom(e.target.value)}
-                                                className="rounded-xl"
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium">Valid Until *</label>
-                                            <Input
-                                                type="datetime-local"
-                                                value={validUntil}
-                                                onChange={(e) => setValidUntil(e.target.value)}
-                                                className="rounded-xl"
-                                            />
-                                        </div>
-                                        <div className="space-y-2 md:col-span-2">
-                                            <div className="flex items-center gap-3">
-                                                <Switch
-                                                    checked={autoSendNotif}
-                                                    onCheckedChange={setAutoSendNotif}
-                                                />
-                                                <label className="text-sm font-medium">Auto Send Notification</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex justify-end gap-4 mt-6">
-                                        <Button variant="destructive" onClick={() => setShowCreateCoupon(false)} className="rounded-full">Cancel</Button>
-                                        <Button onClick={handleCreateCoupon} className="rounded-full bg-green-600 hover:bg-green-700">Create Coupon</Button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </TabsContent>
-                </Tabs>
+            <div className="flex flex-col gap-1">
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">Notifications & Promotions</h1>
+                <p className="text-muted-foreground">Manage communications, promotions, and coupons</p>
             </div>
+
+            {/* Removed the heavy outer container and kept the Tabs structure flat */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full max-w-lg grid-cols-3 mb-6 h-12">
+                    <TabsTrigger value="notifications" className="rounded-lg">Notifications</TabsTrigger>
+                    <TabsTrigger value="promotion" className="rounded-lg">Promotion</TabsTrigger>
+                    <TabsTrigger value="coupons" className="rounded-lg">Coupons</TabsTrigger>
+                </TabsList>
+
+                {/* Notifications Tab */}
+                <TabsContent value="notifications" className="space-y-6">
+                    {!showCreateNotification ? (
+                        <>
+                            <div className="flex justify-end mb-4">
+                                <Button
+                                    onClick={() => setShowCreateNotification(true)}
+                                    className="rounded-xl h-11 px-6 shadow-sm"
+                                >
+                                    Create Notification
+                                </Button>
+                            </div>
+                            <DataTable columns={notificationColumns} data={notifications} />
+                        </>
+                    ) : (
+                        <div className="space-y-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-semibold">Create Notification</h3>
+                                <Button variant="outline" onClick={() => setShowCreateNotification(false)} className="rounded-xl h-11 px-6">
+                                    Back
+                                </Button>
+                            </div>
+                            <div className="bg-card border border-border/50 rounded-xl p-6 shadow-sm">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Title *</label>
+                                        <Input
+                                            placeholder="Enter notification title"
+                                            value={notifTitle}
+                                            onChange={(e) => setNotifTitle(e.target.value)}
+                                            className="rounded-xl"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Priority Type</label>
+                                        <Select value={notifPriority} onValueChange={setNotifPriority}>
+                                            <SelectTrigger className="rounded-xl">
+                                                <SelectValue placeholder="Select Priority" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="high">High</SelectItem>
+                                                <SelectItem value="medium">Medium</SelectItem>
+                                                <SelectItem value="low">Low</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2 md:col-span-2">
+                                        <label className="text-sm font-medium">Message *</label>
+                                        <Textarea
+                                            placeholder="Enter notification message"
+                                            value={notifMessage}
+                                            onChange={(e) => setNotifMessage(e.target.value)}
+                                            className="rounded-xl"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Schedule Date</label>
+                                        <Input
+                                            type="date"
+                                            value={notifScheduleDate}
+                                            onChange={(e) => setNotifScheduleDate(e.target.value)}
+                                            className="rounded-xl"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Schedule Time</label>
+                                        <Input
+                                            type="time"
+                                            value={notifScheduleTime}
+                                            onChange={(e) => setNotifScheduleTime(e.target.value)}
+                                            className="rounded-xl"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex justify-end gap-4 mt-6">
+                                    <Button variant="outline" onClick={() => setShowCreateNotification(false)} className="rounded-xl h-11 px-6">Cancel</Button>
+                                    <Button onClick={handleScheduleNotification} className="rounded-xl h-11 px-6 shadow-sm">Schedule</Button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </TabsContent>
+
+                {/* Promotion Tab - Similar to notification but simplified */}
+                <TabsContent value="promotion" className="space-y-6">
+                    <div className="bg-card border border-border/50 rounded-xl p-6 shadow-sm">
+                        <h3 className="text-lg font-semibold mb-6">Promotion Details</h3>
+                        <p className="text-muted-foreground text-sm mb-4">Use the notifications tab to send promotional messages</p>
+                    </div>
+                </TabsContent>
+
+                {/* Coupons Tab */}
+                <TabsContent value="coupons" className="space-y-6">
+                    {!showCreateCoupon ? (
+                        <>
+                            <div className="flex justify-end mb-4">
+                                <Button
+                                    onClick={() => setShowCreateCoupon(true)}
+                                    className="rounded-xl h-11 px-6 shadow-sm"
+                                >
+                                    Create Coupon
+                                </Button>
+                            </div>
+                            <DataTable columns={couponColumns} data={coupons} />
+                        </>
+                    ) : (
+                        <div className="space-y-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-semibold">Create Coupon</h3>
+                                <Button variant="outline" onClick={() => setShowCreateCoupon(false)} className="rounded-xl h-11 px-6">
+                                    Back
+                                </Button>
+                            </div>
+                            <div className="bg-card border border-border/50 rounded-xl p-6 shadow-sm">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Coupon Code *</label>
+                                        <Input
+                                            placeholder="e.g., SAVE20"
+                                            value={couponCode}
+                                            onChange={(e) => setCouponCode(e.target.value)}
+                                            className="rounded-xl"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Reward Value % *</label>
+                                        <Input
+                                            type="number"
+                                            placeholder="e.g., 20"
+                                            value={rewardValue}
+                                            onChange={(e) => setRewardValue(e.target.value)}
+                                            className="rounded-xl"
+                                        />
+                                    </div>
+                                    <div className="space-y-2 md:col-span-2">
+                                        <label className="text-sm font-medium">Description</label>
+                                        <Textarea
+                                            placeholder="Describe your coupon offer"
+                                            value={couponDescription}
+                                            onChange={(e) => setCouponDescription(e.target.value)}
+                                            className="rounded-xl"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Minimum Order Value ₹</label>
+                                        <Input
+                                            type="number"
+                                            placeholder="e.g., 100"
+                                            value={minOrderValue}
+                                            onChange={(e) => setMinOrderValue(e.target.value)}
+                                            className="rounded-xl"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Usage Limit *</label>
+                                        <Input
+                                            type="number"
+                                            placeholder="e.g., 100"
+                                            value={usageLimit}
+                                            onChange={(e) => setUsageLimit(e.target.value)}
+                                            className="rounded-xl"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Valid From *</label>
+                                        <Input
+                                            type="datetime-local"
+                                            value={validFrom}
+                                            onChange={(e) => setValidFrom(e.target.value)}
+                                            className="rounded-xl"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Valid Until *</label>
+                                        <Input
+                                            type="datetime-local"
+                                            value={validUntil}
+                                            onChange={(e) => setValidUntil(e.target.value)}
+                                            className="rounded-xl"
+                                        />
+                                    </div>
+                                    <div className="space-y-2 md:col-span-2">
+                                        <div className="flex items-center gap-3">
+                                            <Switch
+                                                checked={autoSendNotif}
+                                                onCheckedChange={setAutoSendNotif}
+                                            />
+                                            <label className="text-sm font-medium">Auto Send Notification</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex justify-end gap-4 mt-6">
+                                    <Button variant="outline" onClick={() => setShowCreateCoupon(false)} className="rounded-xl h-11 px-6">Cancel</Button>
+                                    <Button onClick={handleCreateCoupon} className="rounded-xl h-11 px-6 shadow-sm">Create Coupon</Button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </TabsContent>
+            </Tabs>
         </div>
     )
 }

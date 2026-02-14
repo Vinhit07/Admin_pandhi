@@ -97,7 +97,7 @@ const AdminSignUp: React.FC = () => {
                     </div>
                     <h1 className="text-4xl font-bold text-foreground mb-4">Join Our Team</h1>
                     <p className="text-lg text-muted-foreground">
-                        Create your admin account to manage HungerBox outlets and operations.
+                        Create admin account to manage HungerBox outlets and operations.
                     </p>
                 </div>
             </div>
@@ -116,7 +116,7 @@ const AdminSignUp: React.FC = () => {
                     <div className="bg-card rounded-xl border-2 border-border p-8 shadow-lg">
                         <div className="text-center mb-6">
                             <h2 className="text-2xl font-bold text-foreground">Create Admin Account</h2>
-                            <p className="text-muted-foreground mt-1">Fill in your details to get started</p>
+                            <p className="text-muted-foreground mt-1">Fill in details to get started</p>
                         </div>
 
                         {/* Verification Notice */}
@@ -126,8 +126,8 @@ const AdminSignUp: React.FC = () => {
                                 <div>
                                     <p className="text-sm font-medium text-foreground">Verification Required</p>
                                     <p className="text-xs text-muted-foreground mt-1">
-                                        Your account will be pending until verified by a SuperAdmin. You'll receive
-                                        confirmation once approved.
+                                        Account will be pending until verified by a SuperAdmin. Confirmation
+                                        will be sent once approved.
                                     </p>
                                 </div>
                             </div>

@@ -97,7 +97,7 @@ export const OutletManagement = () => {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Outlet Management</h1>
-                    <p className="text-muted-foreground mt-2">Manage your outlets across different locations.</p>
+                    <p className="text-muted-foreground mt-2">Manage outlets across different locations.</p>
                 </div>
 
                 <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -204,7 +204,7 @@ export const OutletManagement = () => {
             {outlets.length === 0 && !loading && (
                 <div className="h-64 flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed border-border rounded-xl">
                     <Store className="w-12 h-12 mb-4 opacity-20" />
-                    <p>No outlets found. Add your first outlet above.</p>
+                    <p>No outlets found. Add first outlet above.</p>
                 </div>
             )}
         </div>

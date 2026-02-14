@@ -211,23 +211,28 @@ export const TicketManagement = () => {
 
     return (
         <div className="space-y-6">
+            <div className="flex flex-col gap-1">
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">Ticket Management</h1>
+                <p className="text-muted-foreground">Manage and resolve customer support tickets</p>
+            </div>
+
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="rounded-2xl border-2">
+                <Card className="rounded-xl border border-border/50 shadow-sm">
                     <CardContent className="p-6 text-center">
                         <p className="text-sm text-muted-foreground mb-2">Total tickets</p>
                         <p className="text-4xl font-bold text-primary">{totalTickets}</p>
                     </CardContent>
                 </Card>
 
-                <Card className="rounded-2xl border-2">
+                <Card className="rounded-xl border border-border/50 shadow-sm">
                     <CardContent className="p-6 text-center">
                         <p className="text-sm text-muted-foreground mb-2">Open Tickets</p>
                         <p className="text-4xl font-bold text-primary">{openTickets}</p>
                     </CardContent>
                 </Card>
 
-                <Card className="rounded-2xl border-2">
+                <Card className="rounded-xl border border-border/50 shadow-sm">
                     <CardContent className="p-6 text-center">
                         <p className="text-sm text-muted-foreground mb-2">Closed Tickets</p>
                         <p className="text-4xl font-bold text-primary">{closedTickets}</p>
@@ -239,9 +244,9 @@ export const TicketManagement = () => {
             <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                     {/* Status Filter */}
-                    <div className="bg-card border-2 border-border rounded-full px-4 py-2 shadow-md">
+                    <div className="bg-card rounded-xl shadow-sm border border-border/50 h-11 px-4">
                         <Select value={statusFilter} onValueChange={setStatusFilter}>
-                            <SelectTrigger className="w-[180px] border-0 focus:ring-0">
+                            <SelectTrigger className="w-[180px] border-0 focus:ring-0 h-full p-0">
                                 <SelectValue placeholder="All Statuses" />
                             </SelectTrigger>
                             <SelectContent>
@@ -257,18 +262,18 @@ export const TicketManagement = () => {
 
                 <div className="flex items-center gap-4">
                     {/* Search */}
-                    <div className="bg-card border-2 border-border rounded-full px-4 py-2 shadow-md flex items-center gap-2 max-w-md">
-                        <Search size={20} className="text-muted-foreground" />
+                    <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 max-w-md h-11 px-4">
+                        <Search size={18} className="text-muted-foreground shrink-0" />
                         <Input
                             placeholder="Search by ID, description or name"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
+                            className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-full"
                         />
                     </div>
 
                     {/* Refresh Button */}
-                    <Button onClick={handleRefresh} className="rounded-full px-6 shadow-md">
+                    <Button onClick={handleRefresh} className="rounded-xl h-11 px-6 shadow-sm border border-border/10">
                         <RefreshCw size={18} className="mr-2" />
                         Refresh
                     </Button>
@@ -276,10 +281,7 @@ export const TicketManagement = () => {
             </div>
 
             {/* Ticket Details Table */}
-            <div className="bg-sidebar border-2 border-sidebar-border rounded-3xl p-6 shadow-lg">
-                <h3 className="text-lg font-semibold mb-4">Ticket Details</h3>
-                <DataTable columns={ticketColumns} data={filteredTickets} />
-            </div>
+            <DataTable columns={ticketColumns} data={filteredTickets} />
 
             {/* Ticket Details Dialog */}
             {selectedTicket && (

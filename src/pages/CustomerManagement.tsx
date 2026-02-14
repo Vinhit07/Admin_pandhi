@@ -155,30 +155,31 @@ export const CustomerManagement = () => {
 
     return (
         <div className="space-y-6">
+            <div className="flex flex-col gap-1">
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">Customer Management</h1>
+                <p className="text-muted-foreground">View and manage customer information</p>
+            </div>
+
             {/* Search */}
-            <div className="flex justify-end">
-                <div className="bg-card border-2 border-border rounded-full px-4 py-2 shadow-md flex items-center gap-2 max-w-md w-full md:w-auto">
-                    <Search size={20} className="text-muted-foreground" />
-                    <Input
-                        placeholder="Search by ID, Name or Phone"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent w-full"
-                    />
-                </div>
+            {/* Search - Pill shaped */}
+            <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 flex-1 max-w-md h-11 px-4">
+                <Search size={18} className="text-muted-foreground shrink-0" />
+                <Input
+                    placeholder="Search by ID or Name"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-full"
+                />
             </div>
 
             {/* Customer Details Table */}
-            <div className="bg-sidebar border-2 border-sidebar-border rounded-3xl p-6 shadow-lg">
-                <h3 className="text-lg font-semibold mb-4">Customer Details</h3>
-                <DataTable columns={customerColumns} data={filteredCustomers} />
+            <DataTable columns={customerColumns} data={filteredCustomers} />
 
-                {!loading && filteredCustomers.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                        No customers found.
-                    </div>
-                )}
-            </div>
+            {!loading && filteredCustomers.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                    No customers found.
+                </div>
+            )}
 
             {/* Customer Details Dialog */}
             <CustomerDetailsDialog

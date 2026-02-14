@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext"
 import { useOutlet } from "../context/OutletContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card"
 import { reportService } from "../services"
-import { Loader2, Calendar } from "lucide-react"
+import { Loader2, Calendar, RefreshCw } from "lucide-react"
 import {
     BarChart,
     Bar,
@@ -132,14 +132,67 @@ export const Home = () => {
     }
 
     return (
-        <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold text-foreground">Analytics Dashboard</h1>
-                <p className="text-muted-foreground">Comprehensive overview of your business metrics</p>
+        <div className="space-y-4 pb-4">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-foreground">Analytics Dashboard</h1>
+                    <p className="text-muted-foreground">Comprehensive overview of business metrics</p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-lg border border-border">
+                        {[
+                            { label: "7 Days", val: 7 },
+                            { label: "30 Days", val: 30 },
+                            { label: "90 Days", val: 90 }
+                        ].map(q => {
+                            const isCurrentRange = Math.round((new Date(dateRange.to).getTime() - new Date(dateRange.from).getTime()) / (24 * 60 * 60 * 1000)) === q.val;
+                            return (
+                                <button
+                                    key={q.val}
+                                    onClick={() => setQuickDateRange(q.val)}
+                                    className={`
+                                        px-3 py-1 rounded-md text-xs font-semibold transition-all duration-200
+                                        ${isCurrentRange
+                                            ? 'bg-primary text-primary-foreground shadow-sm'
+                                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                        }
+                                    `}
+                                >
+                                    {q.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-card">
+                        <input
+                            type="date"
+                            value={dateRange.from}
+                            onChange={(e) => setDateRange(prev => ({ ...prev, from: e.target.value }))}
+                            className="bg-transparent text-sm outline-none border-none p-0 w-[110px]"
+                        />
+                        <span className="text-xs text-muted-foreground">to</span>
+                        <input
+                            type="date"
+                            value={dateRange.to}
+                            onChange={(e) => setDateRange(prev => ({ ...prev, to: e.target.value }))}
+                            className="bg-transparent text-sm outline-none border-none p-0 w-[110px]"
+                        />
+                    </div>
+
+                    <button
+                        onClick={fetchAllData}
+                        className="p-2 rounded-lg border border-border bg-card text-foreground hover:bg-muted transition-colors"
+                        title="Refresh"
+                    >
+                        <RefreshCw size={18} />
+                    </button>
+                </div>
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <Card>
                     <CardHeader className="pb-3">
                         <CardDescription>Active Stores</CardDescription>
@@ -186,61 +239,6 @@ export const Home = () => {
                 </Card>
             </div>
 
-            {/* Date Range and Outlet Filter */}
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center justify-between flex-wrap gap-4">
-                        <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2">
-                                <Calendar className="w-5 h-5 text-muted-foreground" />
-                                <span className="font-semibold">Date Range:</span>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                                {/* Global filter is now in TopNav */}
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-3 flex-wrap">
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => setQuickDateRange(7)}
-                                    className="px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-                                >
-                                    7 Days
-                                </button>
-                                <button
-                                    onClick={() => setQuickDateRange(30)}
-                                    className="px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-                                >
-                                    30 Days
-                                </button>
-                                <button
-                                    onClick={() => setQuickDateRange(90)}
-                                    className="px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-                                >
-                                    90 Days
-                                </button>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="date"
-                                    value={dateRange.from}
-                                    onChange={(e) => setDateRange(prev => ({ ...prev, from: e.target.value }))}
-                                    className="border border-gray-300 rounded px-2 py-1 text-sm"
-                                />
-                                <span className="text-muted-foreground">to</span>
-                                <input
-                                    type="date"
-                                    value={dateRange.to}
-                                    onChange={(e) => setDateRange(prev => ({ ...prev, to: e.target.value }))}
-                                    className="border border-gray-300 rounded px-2 py-1 text-sm"
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </CardHeader>
-            </Card>
 
             {/* Revenue Trend Chart */}
             <Card>
@@ -271,7 +269,7 @@ export const Home = () => {
             </Card>
 
             {/* Charts Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Order Status Distribution */}
                 <Card>
                     <CardHeader>
@@ -358,14 +356,11 @@ export const Home = () => {
                         {topSellingItems.length > 0 ? (
                             <div className="h-[300px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={topSellingItems} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                                    <BarChart data={topSellingItems} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                                         <XAxis
                                             dataKey="productName"
-                                            angle={-45}
-                                            textAnchor="end"
-                                            tick={{ fontSize: 12 }}
-                                            height={80}
+                                            tick={{ fontSize: 11 }}
                                             interval={0}
                                         />
                                         <YAxis tick={{ fontSize: 12 }} />
@@ -393,14 +388,11 @@ export const Home = () => {
                         {peakTimeSlots.length > 0 ? (
                             <div className="h-[300px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={peakTimeSlots} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                                    <BarChart data={peakTimeSlots} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                                         <XAxis
                                             dataKey="displayName"
-                                            angle={-45}
-                                            textAnchor="end"
-                                            tick={{ fontSize: 12 }}
-                                            height={80}
+                                            tick={{ fontSize: 11 }}
                                             interval={0}
                                         />
                                         <YAxis tick={{ fontSize: 12 }} />

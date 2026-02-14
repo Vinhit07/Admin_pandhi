@@ -240,94 +240,88 @@ export const WalletManagement = () => {
 
     return (
         <div className="space-y-6">
-            {/* Tabs Container */}
-            <div className="bg-sidebar border-2 border-sidebar-border rounded-3xl p-6 shadow-lg">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full max-w-lg grid-cols-3 mb-6">
-                        <TabsTrigger value="summary">Wallet Summary</TabsTrigger>
-                        <TabsTrigger value="history">Recharge History</TabsTrigger>
-                        <TabsTrigger value="orders">Paid orders</TabsTrigger>
-                    </TabsList>
-
-                    {/* Wallet Summary Tab */}
-                    <TabsContent value="summary" className="space-y-6">
-                        {/* Search and Refresh */}
-                        <div className="flex items-center justify-between gap-4">
-                            <div className="bg-card border-2 border-border rounded-full px-4 py-2 shadow-md flex items-center gap-2 flex-1 max-w-md">
-                                <Search size={20} className="text-muted-foreground" />
-                                <Input
-                                    placeholder="Search by Wallet ID or Name"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
-                                />
-                            </div>
-                            <Button onClick={handleRefresh} className="rounded-full px-6 shadow-md">
-                                <RefreshCw size={18} className="mr-2" />
-                                Refresh
-                            </Button>
-                        </div>
-
-                        {/* Wallet Summary Table */}
-                        <div>
-                            <h3 className="text-lg font-semibold mb-4">Wallet Summary</h3>
-                            <DataTable columns={walletColumns} data={filteredWalletData} />
-                        </div>
-                    </TabsContent>
-
-                    {/* Recharge History Tab */}
-                    <TabsContent value="history" className="space-y-6">
-                        {/* Search and Refresh */}
-                        <div className="flex items-center justify-between gap-4">
-                            <div className="bg-card border-2 border-border rounded-full px-4 py-2 shadow-md flex items-center gap-2 flex-1 max-w-md">
-                                <Search size={20} className="text-muted-foreground" />
-                                <Input
-                                    placeholder="Search by Recharge ID or Name"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
-                                />
-                            </div>
-                            <Button onClick={handleRefresh} className="rounded-full px-6 shadow-md">
-                                <RefreshCw size={18} className="mr-2" />
-                                Refresh
-                            </Button>
-                        </div>
-
-                        {/* Recharge History Table */}
-                        <div>
-                            <h3 className="text-lg font-semibold mb-4">Recharge History</h3>
-                            <DataTable columns={rechargeColumns} data={filteredRechargeData} />
-                        </div>
-                    </TabsContent>
-
-                    {/* Paid Orders Tab */}
-                    <TabsContent value="orders" className="space-y-6">
-                        {/* Search and Refresh */}
-                        <div className="flex items-center justify-between gap-4">
-                            <div className="bg-card border-2 border-border rounded-full px-4 py-2 shadow-md flex items-center gap-2 flex-1 max-w-md">
-                                <Search size={20} className="text-muted-foreground" />
-                                <Input
-                                    placeholder="Search by Order ID or Name"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
-                                />
-                            </div>
-                            <Button onClick={handleRefresh} className="rounded-full px-6 shadow-md">
-                                <RefreshCw size={18} className="mr-2" />
-                                Refresh
-                            </Button>
-                        </div>
-
-                        {/* Paid Orders Table */}
-                        <div>
-                            <h3 className="text-lg font-semibold mb-4">Paid Orders</h3>
-                            <DataTable columns={paidOrdersColumns} data={filteredPaidOrders} />
-                        </div>
-                    </TabsContent>
-                </Tabs>
+            <div className="flex flex-col gap-1">
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">Wallet Management</h1>
+                <p className="text-muted-foreground">Monitor and manage digital wallets and transactions</p>
             </div>
+
+            {/* Removed the heavy outer container and kept the Tabs structure flat */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full max-w-lg grid-cols-3 mb-6 h-12">
+                    <TabsTrigger value="summary" className="rounded-lg">Wallet Summary</TabsTrigger>
+                    <TabsTrigger value="history" className="rounded-lg">Recharge History</TabsTrigger>
+                    <TabsTrigger value="orders" className="rounded-lg">Paid orders</TabsTrigger>
+                </TabsList>
+
+                {/* Wallet Summary Tab */}
+                <TabsContent value="summary" className="space-y-6">
+                    {/* Search and Refresh */}
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 flex-1 max-w-md h-11 px-4">
+                            <Search size={18} className="text-muted-foreground shrink-0" />
+                            <Input
+                                placeholder="Search by Wallet ID or Name"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-full p-0"
+                            />
+                        </div>
+                        <Button onClick={handleRefresh} className="rounded-xl h-11 px-6 shadow-sm border border-border/10">
+                            <RefreshCw size={18} className="mr-2" />
+                            Refresh
+                        </Button>
+                    </div>
+
+                    {/* Wallet Summary Table */}
+                    <DataTable columns={walletColumns} data={filteredWalletData} />
+                </TabsContent>
+
+                {/* Recharge History Tab */}
+                <TabsContent value="history" className="space-y-6">
+                    {/* Search and Refresh */}
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 flex-1 max-w-md h-11 px-4">
+                            <Search size={18} className="text-muted-foreground shrink-0" />
+                            <Input
+                                placeholder="Search by Recharge ID or Name"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-full p-0"
+                            />
+                        </div>
+                        <Button onClick={handleRefresh} className="rounded-xl h-11 px-6 shadow-sm border border-border/10">
+                            <RefreshCw size={18} className="mr-2" />
+                            Refresh
+                        </Button>
+                    </div>
+
+                    {/* Recharge History Table */}
+                    <DataTable columns={rechargeColumns} data={filteredRechargeData} />
+                </TabsContent>
+
+                {/* Paid Orders Tab */}
+                <TabsContent value="orders" className="space-y-6">
+                    {/* Search and Refresh */}
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 flex-1 max-w-md h-11 px-4">
+                            <Search size={18} className="text-muted-foreground shrink-0" />
+                            <Input
+                                placeholder="Search by Order ID or Name"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-full p-0"
+                            />
+                        </div>
+                        <Button onClick={handleRefresh} className="rounded-xl h-11 px-6 shadow-sm border border-border/10">
+                            <RefreshCw size={18} className="mr-2" />
+                            Refresh
+                        </Button>
+                    </div>
+
+                    {/* Paid Orders Table */}
+                    <DataTable columns={paidOrdersColumns} data={filteredPaidOrders} />
+                </TabsContent>
+            </Tabs>
         </div>
     )
 }
