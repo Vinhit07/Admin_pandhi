@@ -116,13 +116,14 @@ export const apiRequest = async <T = any>(
  */
 export const uploadFile = async <T = any>(
     endpoint: string,
-    formData: FormData
+    formData: FormData,
+    method: string = 'POST'
 ): Promise<T> => {
     const url = `${API_BASE_URL}${endpoint}`;
     const token = localStorage.getItem('token');
 
     const response = await fetch(url, {
-        method: 'POST',
+        method: method,
         headers: {
             ...(token && { Authorization: `Bearer ${token}` }),
             // Don't set Content-Type for FormData - browser will set it automatically

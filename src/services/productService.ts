@@ -75,7 +75,7 @@ export const productService = {
             formData.append('image', imageFile);
         }
 
-        return await uploadFile<ApiResponse<Product>>(`${API_ENDPOINTS.UPDATE_PRODUCT}/${productId}`, formData);
+        return await uploadFile<ApiResponse<Product>>(`${API_ENDPOINTS.UPDATE_PRODUCT}/${productId}`, formData, 'PUT');
     },
 
     /**

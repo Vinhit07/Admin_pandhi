@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
@@ -10,7 +10,7 @@ import {
     SelectValue,
 } from "../components/ui/select"
 import { Badge } from "../components/ui/badge"
-import { RefreshCw, Search, Loader2 } from "lucide-react"
+import { RefreshCw, Search, Loader2, ShoppingBag, BarChart3 } from "lucide-react"
 import { DataTable } from "../components/ui/data-table"
 import { useOutlet } from "../context/OutletContext"
 import { orderService } from "../services"
@@ -67,6 +67,11 @@ export const OrderManagement = () => {
     const [selectedOrder, setSelectedOrder] = useState<any>(null)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
 
+    // Tab state: "orders" or "analytics"
+    const [activeTab, setActiveTab] = useState<"orders" | "analytics">("orders")
+    // Product filter for analytics tab
+    const [selectedProduct, setSelectedProduct] = useState<string>("all")
+
     useEffect(() => {
         if (outletId) {
             setLoading(true)
@@ -94,6 +99,7 @@ export const OrderManagement = () => {
         fetchOrders()
         setSearchQuery("")
         setStatusFilter("all")
+        setSelectedProduct("all")
     }
 
     const handleViewOrder = (order: Order) => {
@@ -112,7 +118,94 @@ export const OrderManagement = () => {
         setIsDialogOpen(true)
     }
 
-    // Define columns for the data table
+    // Extract unique product names from all orders
+    const uniqueProducts = useMemo(() => {
+        const productSet = new Set<string>()
+        orders.forEach(order => {
+            order.items?.forEach(item => {
+                if (item.productName) {
+                    productSet.add(item.productName)
+                }
+            })
+        })
+        return Array.from(productSet).sort()
+    }, [orders])
+
+    // Product analytics data
+    const productAnalytics = useMemo(() => {
+        if (selectedProduct === "all") {
+            // Show analytics for ALL products
+            const productMap = new Map<string, { totalQuantity: number, orderCount: number, totalRevenue: number }>()
+            orders.forEach(order => {
+                order.items?.forEach(item => {
+                    if (item.productName) {
+                        const existing = productMap.get(item.productName) || { totalQuantity: 0, orderCount: 0, totalRevenue: 0 }
+                        existing.totalQuantity += item.quantity
+                        existing.totalRevenue += item.totalPrice || (item.unitPrice * item.quantity)
+                        productMap.set(item.productName, existing)
+                    }
+                })
+            })
+            // Count unique orders per product
+            orders.forEach(order => {
+                const seenProducts = new Set<string>()
+                order.items?.forEach(item => {
+                    if (item.productName && !seenProducts.has(item.productName)) {
+                        seenProducts.add(item.productName)
+                        const existing = productMap.get(item.productName)!
+                        existing.orderCount += 1
+                    }
+                })
+            })
+            return Array.from(productMap.entries()).map(([name, data]) => ({
+                productName: name,
+                ...data
+            })).sort((a, b) => b.totalQuantity - a.totalQuantity)
+        }
+        return []
+    }, [orders, selectedProduct])
+
+    // Filter orders that contain the selected product
+    const productFilteredOrders = useMemo(() => {
+        if (selectedProduct === "all") return orders
+        return orders.filter(order =>
+            order.items?.some(item =>
+                item.productName?.toLowerCase() === selectedProduct.toLowerCase()
+            )
+        )
+    }, [orders, selectedProduct])
+
+    // Grand total quantity of the selected product
+    const grandTotalQuantity = useMemo(() => {
+        if (selectedProduct === "all") {
+            return orders.reduce((total, order) =>
+                total + (order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0)
+                , 0)
+        }
+        return productFilteredOrders.reduce((total, order) => {
+            const matchingItems = order.items?.filter(item =>
+                item.productName?.toLowerCase() === selectedProduct.toLowerCase()
+            ) || []
+            return total + matchingItems.reduce((sum, item) => sum + item.quantity, 0)
+        }, 0)
+    }, [orders, productFilteredOrders, selectedProduct])
+
+    // Grand total revenue of the selected product
+    const grandTotalRevenue = useMemo(() => {
+        if (selectedProduct === "all") {
+            return orders.reduce((total, order) =>
+                total + (order.items?.reduce((sum, item) => sum + (item.totalPrice || item.unitPrice * item.quantity), 0) || 0)
+                , 0)
+        }
+        return productFilteredOrders.reduce((total, order) => {
+            const matchingItems = order.items?.filter(item =>
+                item.productName?.toLowerCase() === selectedProduct.toLowerCase()
+            ) || []
+            return total + matchingItems.reduce((sum, item) => sum + (item.totalPrice || item.unitPrice * item.quantity), 0)
+        }, 0)
+    }, [orders, productFilteredOrders, selectedProduct])
+
+    // Define columns for the data table (Orders tab)
     const columns: ColumnDef<Order>[] = [
         {
             accessorKey: "orderId",
@@ -193,6 +286,70 @@ export const OrderManagement = () => {
         },
     ]
 
+    // Columns for the product-filtered orders table (Analytics tab with specific product selected)
+    const productOrderColumns: ColumnDef<Order>[] = [
+        {
+            accessorKey: "orderId",
+            header: "ORDER ID",
+            cell: ({ row }) => (
+                <span className="font-medium text-primary">{row.getValue("orderId")}</span>
+            ),
+        },
+        {
+            accessorKey: "customerName",
+            header: "NAME",
+        },
+        {
+            id: "productQty",
+            header: "QTY OF PRODUCT",
+            cell: ({ row }) => {
+                const items = row.original.items || []
+                const matchingItems = items.filter(item =>
+                    item.productName?.toLowerCase() === selectedProduct.toLowerCase()
+                )
+                const qty = matchingItems.reduce((sum, item) => sum + item.quantity, 0)
+                return <span className="font-semibold text-primary">{qty}</span>
+            }
+        },
+        {
+            id: "productTotal",
+            header: "PRODUCT TOTAL",
+            cell: ({ row }) => {
+                const items = row.original.items || []
+                const matchingItems = items.filter(item =>
+                    item.productName?.toLowerCase() === selectedProduct.toLowerCase()
+                )
+                const total = matchingItems.reduce((sum, item) => sum + (item.totalPrice || item.unitPrice * item.quantity), 0)
+                return <span className="font-semibold">₹{total.toFixed(2)}</span>
+            }
+        },
+        {
+            accessorKey: "status",
+            header: "STATUS",
+            cell: ({ row }) => getStatusBadge(row.getValue("status")),
+        },
+        {
+            accessorKey: "orderTime",
+            header: "ORDER DATE",
+            cell: ({ row }) => (
+                <span>{formatDate(row.getValue("orderTime"))}</span>
+            ),
+        },
+        {
+            id: "actions",
+            header: "ACTIONS",
+            cell: ({ row }) => (
+                <Button
+                    size="sm"
+                    className="rounded-full"
+                    onClick={() => handleViewOrder(row.original)}
+                >
+                    View
+                </Button>
+            ),
+        },
+    ]
+
     const filteredOrders = orders.filter(order => {
         const matchesSearch =
             String(order.orderId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -217,47 +374,192 @@ export const OrderManagement = () => {
                 <p className="text-muted-foreground">Monitor and process incoming orders</p>
             </div>
 
-            {/* Filters and Search - Pill shaped */}
-            <div className="flex items-center gap-4">
-                {/* Status Filter */}
-                <div className="bg-card rounded-xl shadow-sm border border-border/50">
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-[180px] border-0 focus:ring-0 h-11 px-4">
-                            <SelectValue placeholder="All Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Status</SelectItem>
-                            <SelectItem value="PENDING">Pending</SelectItem>
-                            <SelectItem value="DELIVERED">Delivered</SelectItem>
-                            <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                            <SelectItem value="PARTIALLY_DELIVERED">Partially Delivered</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                {/* Search - Pill shaped */}
-                <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 flex-1 max-w-md h-11 px-4">
-                    <Search size={18} className="text-muted-foreground shrink-0" />
-                    <Input
-                        placeholder="Search by ID or Name"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-full"
-                    />
-                </div>
-
-                {/* Refresh Button */}
-                <Button
-                    onClick={handleRefresh}
-                    className="rounded-xl h-11 px-6 shadow-sm border border-border/10"
+            {/* Tab Switcher */}
+            <div className="flex items-center gap-2">
+                <button
+                    onClick={() => setActiveTab("orders")}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${activeTab === "orders"
+                            ? "bg-primary text-primary-foreground shadow-md"
+                            : "bg-card text-muted-foreground border border-border/50 hover:bg-accent hover:text-accent-foreground"
+                        }`}
                 >
-                    <RefreshCw size={18} className="mr-2" />
-                    Refresh
-                </Button>
+                    <ShoppingBag size={16} />
+                    Orders
+                </button>
+                <button
+                    onClick={() => setActiveTab("analytics")}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${activeTab === "analytics"
+                            ? "bg-primary text-primary-foreground shadow-md"
+                            : "bg-card text-muted-foreground border border-border/50 hover:bg-accent hover:text-accent-foreground"
+                        }`}
+                >
+                    <BarChart3 size={16} />
+                    Product Analytics
+                </button>
             </div>
 
-            {/* Data Table Container */}
-            <DataTable columns={columns} data={filteredOrders} />
+            {/* =================== ORDERS TAB =================== */}
+            {activeTab === "orders" && (
+                <>
+                    {/* Filters and Search */}
+                    <div className="flex items-center gap-4">
+                        <div className="bg-card rounded-xl shadow-sm border border-border/50">
+                            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                <SelectTrigger className="w-[180px] border-0 focus:ring-0 h-11 px-4">
+                                    <SelectValue placeholder="All Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Status</SelectItem>
+                                    <SelectItem value="PENDING">Pending</SelectItem>
+                                    <SelectItem value="DELIVERED">Delivered</SelectItem>
+                                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                                    <SelectItem value="PARTIALLY_DELIVERED">Partially Delivered</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 flex-1 max-w-md h-11 px-4">
+                            <Search size={18} className="text-muted-foreground shrink-0" />
+                            <Input
+                                placeholder="Search by ID or Name"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-full"
+                            />
+                        </div>
+
+                        <Button
+                            onClick={handleRefresh}
+                            className="rounded-xl h-11 px-6 shadow-sm border border-border/10"
+                        >
+                            <RefreshCw size={18} className="mr-2" />
+                            Refresh
+                        </Button>
+                    </div>
+
+                    <DataTable columns={columns} data={filteredOrders} />
+                </>
+            )}
+
+            {/* =================== PRODUCT ANALYTICS TAB =================== */}
+            {activeTab === "analytics" && (
+                <>
+                    {/* Product Filter */}
+                    <div className="flex items-center gap-4">
+                        <div className="bg-card rounded-xl shadow-sm border border-border/50">
+                            <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+                                <SelectTrigger className="w-[260px] border-0 focus:ring-0 h-11 px-4">
+                                    <SelectValue placeholder="Select Product" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Products</SelectItem>
+                                    {uniqueProducts.map((product) => (
+                                        <SelectItem key={product} value={product}>
+                                            {product}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <Button
+                            onClick={handleRefresh}
+                            className="rounded-xl h-11 px-6 shadow-sm border border-border/10"
+                        >
+                            <RefreshCw size={18} className="mr-2" />
+                            Refresh
+                        </Button>
+                    </div>
+
+                    {/* Summary Stats Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-card rounded-xl border border-border/50 p-5 shadow-sm">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                                {selectedProduct === "all" ? "Total Items Ordered" : `Total "${selectedProduct}" Ordered`}
+                            </p>
+                            <p className="text-3xl font-bold text-primary">{grandTotalQuantity}</p>
+                            <p className="text-xs text-muted-foreground mt-1">across {productFilteredOrders.length} order(s)</p>
+                        </div>
+                        <div className="bg-card rounded-xl border border-border/50 p-5 shadow-sm">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                                Orders Containing Product
+                            </p>
+                            <p className="text-3xl font-bold text-foreground">{productFilteredOrders.length}</p>
+                            <p className="text-xs text-muted-foreground mt-1">out of {orders.length} total order(s)</p>
+                        </div>
+                        <div className="bg-card rounded-xl border border-border/50 p-5 shadow-sm">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                                Product Revenue
+                            </p>
+                            <p className="text-3xl font-bold text-green-500">₹{grandTotalRevenue.toFixed(2)}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                {selectedProduct === "all" ? "all products combined" : `from "${selectedProduct}"`}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Product Breakdown Table (when "All Products" selected) */}
+                    {selectedProduct === "all" && productAnalytics.length > 0 && (
+                        <div className="bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden">
+                            <div className="px-5 py-4 border-b border-border/50">
+                                <h3 className="text-sm font-semibold text-foreground">Product-wise Breakdown</h3>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="border-b border-border/50 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                            <th className="text-left px-5 py-3">#</th>
+                                            <th className="text-left px-5 py-3">Product Name</th>
+                                            <th className="text-center px-5 py-3">Total Quantity</th>
+                                            <th className="text-center px-5 py-3">Orders</th>
+                                            <th className="text-right px-5 py-3">Revenue</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {productAnalytics.map((item, index) => (
+                                            <tr
+                                                key={item.productName}
+                                                className="border-b border-border/30 hover:bg-accent/50 cursor-pointer transition-colors"
+                                                onClick={() => setSelectedProduct(item.productName)}
+                                            >
+                                                <td className="px-5 py-3 text-sm text-muted-foreground">{index + 1}</td>
+                                                <td className="px-5 py-3">
+                                                    <span className="font-medium text-foreground">{item.productName}</span>
+                                                </td>
+                                                <td className="px-5 py-3 text-center">
+                                                    <span className="inline-flex items-center justify-center px-2.5 py-0.5 bg-primary/10 text-primary text-sm font-bold rounded-full">
+                                                        {item.totalQuantity}
+                                                    </span>
+                                                </td>
+                                                <td className="px-5 py-3 text-center text-sm text-muted-foreground">{item.orderCount}</td>
+                                                <td className="px-5 py-3 text-right font-semibold text-green-500">₹{item.totalRevenue.toFixed(2)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Filtered Orders Table (when specific product selected) */}
+                    {selectedProduct !== "all" && (
+                        <>
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-lg font-semibold text-foreground">
+                                    Orders with "{selectedProduct}"
+                                </h3>
+                                <button
+                                    onClick={() => setSelectedProduct("all")}
+                                    className="text-xs text-primary hover:underline ml-2"
+                                >
+                                    ← Back to all products
+                                </button>
+                            </div>
+                            <DataTable columns={productOrderColumns} data={productFilteredOrders} />
+                        </>
+                    )}
+                </>
+            )}
 
             {/* Order Details Dialog */}
             <OrderDetailsDialog
@@ -268,3 +570,4 @@ export const OrderManagement = () => {
         </div>
     )
 }
+
