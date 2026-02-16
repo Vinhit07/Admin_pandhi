@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react"
-
 import { useOutlet } from "../context/OutletContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card"
 import { reportService } from "../services"
@@ -20,10 +19,13 @@ import {
     LineChart,
     Line
 } from "recharts"
-
+import { useAuth } from "../context/AuthContext"
 
 export const Home = () => {
     const { outletId } = useOutlet()
+    const { user } = useAuth()
+    const isSuperAdmin = user?.role === 'SUPERADMIN'
+
     const [loading, setLoading] = useState(true)
     const [dashboardData, setDashboardData] = useState<any>(null)
     const [dateRange, setDateRange] = useState({
@@ -40,8 +42,6 @@ export const Home = () => {
 
     useEffect(() => {
         // Wait for outletId to be initialized (it might be null briefly)
-        // Wait for outletId to be initialized (it might be null briefly)
-        // CHANGE: Allow null (All Vendors)
         if (outletId === undefined) return;
 
         fetchAllData()
@@ -50,7 +50,6 @@ export const Home = () => {
     const fetchAllData = async () => {
         try {
             setLoading(true)
-            // Backend expects 'from' and 'to', not 'startDate' and 'endDate'
             const params: any = {
                 from: dateRange.from,
                 to: dateRange.to
@@ -62,7 +61,6 @@ export const Home = () => {
 
             console.log('📊 Fetching dashboard data with params:', params)
 
-            // Fetch all analytics data
             const [overview, revenue, orderStatus, orderSource, topItems, peakSlots] = await Promise.all([
                 reportService.getDashboardOverview(params),
                 reportService.getRevenueTrend(params),
@@ -72,16 +70,6 @@ export const Home = () => {
                 reportService.getPeakTimeSlots(params)
             ])
 
-            console.log('📈 API Responses received:')
-            console.log('  - Overview:', overview)
-            console.log('  - Revenue Trend:', revenue)
-            console.log('  - Order Status:', orderStatus)
-            console.log('  - Order Source:', orderSource)
-            console.log('  - Top Items:', topItems)
-            console.log('  - Peak Slots:', peakSlots)
-
-            // Overview endpoint returns {success, data, message} but others return data directly
-            // This is an inconsistency in the backend API
             const overviewData = (overview as any)?.data ? (overview as any).data : overview
 
             setDashboardData(overviewData)
@@ -109,7 +97,6 @@ export const Home = () => {
         setDateRange({ from, to })
     }
 
-    // Prepare pie chart data for Order Status
     const getOrderStatusPieData = () => {
         if (!orderStatusDist) return []
         return [
@@ -120,7 +107,6 @@ export const Home = () => {
         ].filter(item => item.value > 0)
     }
 
-    // Prepare pie chart data for Order Source
     const getOrderSourcePieData = () => {
         if (!orderSourceDist) return []
         return [
@@ -199,14 +185,16 @@ export const Home = () => {
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <Card>
-                    <CardHeader className="pb-3">
-                        <CardDescription>Active Vendors</CardDescription>
-                        <CardTitle className="text-3xl text-green-600">
-                            {dashboardData?.totalActiveOutlets || 0}
-                        </CardTitle>
-                    </CardHeader>
-                </Card>
+                {isSuperAdmin && (
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardDescription>Active Vendors</CardDescription>
+                            <CardTitle className="text-3xl text-green-600">
+                                {dashboardData?.totalActiveOutlets || 0}
+                            </CardTitle>
+                        </CardHeader>
+                    </Card>
+                )}
 
                 <Card>
                     <CardHeader className="pb-3">
@@ -235,16 +223,17 @@ export const Home = () => {
                     </CardHeader>
                 </Card>
 
-                <Card>
-                    <CardHeader className="pb-3">
-                        <CardDescription>Top Performing Vendor</CardDescription>
-                        <CardTitle className="text-xl text-cyan-600">
-                            {dashboardData?.topPerformingOutlet?.name || 'N/A'}
-                        </CardTitle>
-                    </CardHeader>
-                </Card>
+                {isSuperAdmin && (
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardDescription>Top Performing Vendor</CardDescription>
+                            <CardTitle className="text-xl text-cyan-600">
+                                {dashboardData?.topPerformingOutlet?.name || 'N/A'}
+                            </CardTitle>
+                        </CardHeader>
+                    </Card>
+                )}
             </div>
-
 
             {/* Revenue Trend Chart */}
             <Card>

@@ -22,17 +22,17 @@ export const StaffManagement = () => {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        if (outletId) {
-            fetchStaff()
-        }
+        // Trigger fetch even if outletId is null (All Outlets) or 0
+        fetchStaff()
     }, [outletId])
 
     const fetchStaff = async () => {
-        if (!outletId) return
-
         try {
             setLoading(true)
-            const response = await staffService.getStaffs(outletId)
+            // If outletId is null, treat it as 'ALL'
+            const idToFetch = outletId === null ? 'ALL' : outletId;
+
+            const response = await staffService.getStaffs(idToFetch)
             console.log("👥 Staff Response:", response)
 
             // FIX: Check if data exists and is an array

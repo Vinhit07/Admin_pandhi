@@ -58,19 +58,19 @@ export const InventoryManagement = () => {
     const [toDate, setToDate] = useState(() => new Date().toISOString().split('T')[0])
 
     useEffect(() => {
-        if (outletId) {
-            fetchData()
-        }
+        // Fetch initially or when outletId changes (including when it's null/'ALL')
+        fetchData()
     }, [outletId])
 
     const fetchData = async () => {
-        if (!outletId) return
-
         try {
             setLoading(true)
 
+            // Use "ALL" if outletId is null
+            const targetOutletId = outletId || "ALL"
+
             // 1. Fetch Current Stock
-            const stockRes = await inventoryService.getStocks(outletId)
+            const stockRes = await inventoryService.getStocks(targetOutletId)
             console.log("📦 Raw Stock Response:", stockRes)
 
             // FIX: Robust check for data array
@@ -96,7 +96,7 @@ export const InventoryManagement = () => {
             // Adjust end date to include the full day
             end.setHours(23, 59, 59, 999)
 
-            const historyRes = await inventoryService.getStockHistory(outletId, start, end)
+            const historyRes = await inventoryService.getStockHistory(targetOutletId, start, end)
             console.log("📊 Stock History Response:", historyRes)
 
             // Similar robust check for history data

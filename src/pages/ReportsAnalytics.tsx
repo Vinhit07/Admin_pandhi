@@ -76,14 +76,13 @@ export const ReportsAnalytics = () => {
     const categories = ["All", "Meals", "Beverages", "SpecialFoods", "Desserts"]
 
     useEffect(() => {
-        if (outletId) {
-            fetchData()
-        }
+        // Fetch if outletId is present OR if it's explicitly null/undefined (meaning ALL for SuperAdmin)
+        // We just need to make sure we don't fetch if authentication is still loading, 
+        // but outletId itself being null is now a valid state for "All".
+        fetchData()
     }, [outletId, activeTab, selectedYear])
 
     const fetchData = async () => {
-        if (!outletId) return
-
         try {
             setLoading(true)
             const params: AnalyticsParams = {
@@ -91,9 +90,12 @@ export const ReportsAnalytics = () => {
                 to: `${selectedYear}-12-31`,
             }
 
+            // Use "ALL" if outletId is null
+            const targetOutletId = outletId || "ALL"
+
             switch (activeTab) {
                 case "sales":
-                    const salesRes = await reportService.getSalesReport(outletId, params)
+                    const salesRes = await reportService.getSalesReport(targetOutletId, params)
                     if (Array.isArray(salesRes)) {
                         setSalesData(salesRes)
                     } else if (salesRes?.data && Array.isArray(salesRes.data)) {
@@ -104,7 +106,7 @@ export const ReportsAnalytics = () => {
                     break
 
                 case "revenue":
-                    const revenueRes = await reportService.getRevenueSplit(outletId, params)
+                    const revenueRes = await reportService.getRevenueSplit(targetOutletId, params)
                     const revenueRaw = (revenueRes as any).data || revenueRes
 
                     if (revenueRaw) {
@@ -138,7 +140,7 @@ export const ReportsAnalytics = () => {
 
                 case "profit":
                     const profitParams = { year: parseInt(selectedYear) }
-                    const profitRes = await reportService.getProfitLossTrends(outletId, profitParams)
+                    const profitRes = await reportService.getProfitLossTrends(targetOutletId, profitParams)
 
                     if (Array.isArray(profitRes)) {
                         setProfitData(profitRes)
@@ -150,7 +152,7 @@ export const ReportsAnalytics = () => {
                     break
 
                 case "customers":
-                    const customerRes = await reportService.getCustomerOverview(outletId, params)
+                    const customerRes = await reportService.getCustomerOverview(targetOutletId, params)
                     const customerRaw = (customerRes as any).data || customerRes
 
                     if (customerRaw) {

@@ -60,16 +60,17 @@ export const ProductManagement = () => {
     })
 
     useEffect(() => {
-        if (outletId) {
-            fetchProducts()
-        }
+        // Fetch initially or when outletId changes (including when it's null/'ALL')
+        fetchProducts()
     }, [outletId])
 
     const fetchProducts = async () => {
-        if (!outletId) return
         try {
             setLoading(true)
-            const response = await productService.getProducts(outletId === "ALL" ? 0 : outletId)
+            // If outletId is null/All, pass 0 (as per existing logic `outletId === "ALL" ? 0 : outletId`)
+            // The existing logic already handled string "ALL", we just need to handle null.
+            const targetId = (outletId === "ALL" || outletId === null) ? 0 : outletId
+            const response = await productService.getProducts(targetId)
             console.log("🍴 Products Response:", response)
             if (response.success && response.data) {
                 setProducts(response.data)
@@ -181,18 +182,36 @@ export const ProductManagement = () => {
         }
     }
 
-    const handleRemoveProduct = async (productId: string | number) => {
-        // Confirm delete?
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+    const [productToDelete, setProductToDelete] = useState<Product | null>(null)
+    const [isDeleteLoading, setIsDeleteLoading] = useState(false)
+
+    const handleRemoveProduct = (productId: string | number) => {
+        const product = products.find(p => p.id === productId)
+        if (product) {
+            setProductToDelete(product)
+            setIsDeleteDialogOpen(true)
+        }
+    }
+
+    const handleConfirmDeleteProduct = async () => {
+        if (!productToDelete) return
+
         try {
-            const id = typeof productId === 'string' ? parseInt(productId) : productId
+            setIsDeleteLoading(true)
+            const id = typeof productToDelete.id === 'string' ? parseInt(productToDelete.id) : productToDelete.id
             const response = await productService.deleteProduct(id)
             if (response.success) {
-                setProducts(products.filter((p) => p.id !== id))
+                setProducts(products.filter((p) => p.id !== productToDelete.id))
                 toast.success("Product deleted successfully")
+                setIsDeleteDialogOpen(false)
+                setProductToDelete(null)
             }
         } catch (error) {
             console.error("Error deleting product:", error)
             toast.error("Failed to delete product")
+        } finally {
+            setIsDeleteLoading(false)
         }
     }
 
@@ -516,6 +535,40 @@ export const ProductManagement = () => {
                         </Button>
                         <Button onClick={handleEditProduct}>
                             Save Changes
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirm Deletion</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this product? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 pt-4">
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsDeleteDialogOpen(false)}
+                            disabled={isDeleteLoading}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleConfirmDeleteProduct}
+                            disabled={isDeleteLoading}
+                        >
+                            {isDeleteLoading ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Deleting...
+                                </>
+                            ) : (
+                                "Delete"
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

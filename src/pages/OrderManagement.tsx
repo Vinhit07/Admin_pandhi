@@ -73,20 +73,16 @@ export const OrderManagement = () => {
     const [selectedProduct, setSelectedProduct] = useState<string>("all")
 
     useEffect(() => {
-        if (outletId) {
-            setLoading(true)
-            fetchOrders()
-        } else {
-            setLoading(false)
-        }
+        // Fetch initially or when outletId changes (including when it's null/'ALL')
+        setLoading(true)
+        fetchOrders()
     }, [outletId])
 
     const fetchOrders = async () => {
-        if (!outletId) return
-
         try {
             setLoading(true)
-            const response = await orderService.getOrders(outletId)
+            const targetOutletId = outletId || "ALL"
+            const response = await orderService.getOrders(targetOutletId)
             setOrders(response.data || [])
         } catch (error) {
             console.error('Error fetching orders:', error)
@@ -379,8 +375,8 @@ export const OrderManagement = () => {
                 <button
                     onClick={() => setActiveTab("orders")}
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${activeTab === "orders"
-                            ? "bg-primary text-primary-foreground shadow-md"
-                            : "bg-card text-muted-foreground border border-border/50 hover:bg-accent hover:text-accent-foreground"
+                        ? "bg-primary text-primary-foreground shadow-md"
+                        : "bg-card text-muted-foreground border border-border/50 hover:bg-accent hover:text-accent-foreground"
                         }`}
                 >
                     <ShoppingBag size={16} />
@@ -389,8 +385,8 @@ export const OrderManagement = () => {
                 <button
                     onClick={() => setActiveTab("analytics")}
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${activeTab === "analytics"
-                            ? "bg-primary text-primary-foreground shadow-md"
-                            : "bg-card text-muted-foreground border border-border/50 hover:bg-accent hover:text-accent-foreground"
+                        ? "bg-primary text-primary-foreground shadow-md"
+                        : "bg-card text-muted-foreground border border-border/50 hover:bg-accent hover:text-accent-foreground"
                         }`}
                 >
                     <BarChart3 size={16} />

@@ -48,23 +48,27 @@ export const WalletManagement = () => {
     const [activeTab, setActiveTab] = useState("summary")
 
     useEffect(() => {
-        if (outletId) {
-            setLoading(true)
-            fetchData()
-        } else {
-            setLoading(false)
-        }
+        // Fetch initially or when outletId changes (including when it's null/'ALL')
+        setLoading(true)
+        fetchData()
     }, [outletId])
 
     const fetchData = async () => {
-        if (!outletId) return
+        // Allow fallback to ALL if null. If it's "ALL" string, use 0 for integer-expecting APIs if needed, 
+        // or keep as "ALL" if service handles it. 
+        // Based on previous code: `outletId === 'ALL' ? 0 : outletId` for some services.
+        // Wallet service seems to expect number for some, string for others? 
+        // Let's look at the signatures inferred from usage:
+        // getWalletHistory(number), getRechargeHistory(number), getOrdersPaidViaWallet(string | number)
+
+        const targetId = outletId || "ALL"
 
         try {
             setLoading(true)
             const [walletRes, rechargeRes, ordersRes] = await Promise.all([
-                walletService.getWalletHistory(typeof outletId === 'string' && outletId !== 'ALL' ? parseInt(outletId) : outletId === 'ALL' ? 0 : outletId),
-                walletService.getRechargeHistory(typeof outletId === 'string' && outletId !== 'ALL' ? parseInt(outletId) : outletId === 'ALL' ? 0 : outletId),
-                walletService.getOrdersPaidViaWallet(outletId)
+                walletService.getWalletHistory(targetId),
+                walletService.getRechargeHistory(targetId),
+                walletService.getOrdersPaidViaWallet(targetId)
             ])
             console.log("Wallet Data Response:", walletRes)
             console.log("Recharge Data Response:", rechargeRes)

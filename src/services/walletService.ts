@@ -11,7 +11,7 @@ export const walletService = {
      * @param outletId - Outlet ID
      * @returns Wallet transaction history
      */
-    getWalletHistory: async (outletId: number): Promise<ApiResponse<any>> => {
+    getWalletHistory: async (outletId: number | string): Promise<ApiResponse<any>> => {
         return await apiRequest<ApiResponse<any>>(`${API_ENDPOINTS.GET_WALLET_HISTORY}/${outletId}/`, {
             method: 'GET',
         });
@@ -22,7 +22,7 @@ export const walletService = {
      * @param outletId - Outlet ID
      * @returns Recharge history
      */
-    getRechargeHistory: async (outletId: number): Promise<ApiResponse<any>> => {
+    getRechargeHistory: async (outletId: number | string): Promise<ApiResponse<any>> => {
         return await apiRequest<ApiResponse<any>>(`${API_ENDPOINTS.GET_RECHARGE_HISTORY}/${outletId}/`, {
             method: 'GET',
         });

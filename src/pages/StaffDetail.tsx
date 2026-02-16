@@ -3,8 +3,8 @@ import { useParams, useNavigate } from "react-router-dom"
 import toast from "react-hot-toast"
 import { Button } from "../components/ui/button"
 import { Avatar, AvatarFallback } from "../components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
-import { Switch } from "../components/ui/switch"
+// import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
+// import { Switch } from "../components/ui/switch"
 import { ArrowLeft, User, Mail, Phone, Briefcase, Loader2 } from "lucide-react"
 import { staffService } from "../services"
 import type { Staff } from "../types/api"
@@ -94,37 +94,6 @@ export const StaffDetail = () => {
         }
     }
 
-    const handlePermissionChange = (permission: keyof typeof permissions) => {
-        setPermissions(prev => ({
-            ...prev,
-            [permission]: !prev[permission]
-        }))
-    }
-
-    const handleUpdatePermissions = async () => {
-        if (!staffId) return
-        try {
-            // FIX: Convert Frontend Keys to Backend Types before sending
-            const permissionsArray = Object.entries(permissions).map(([key, isGranted]) => ({
-                type: PERMISSION_MAPPING[key], // Convert 'productInsight' -> 'PRODUCT_INSIGHTS'
-                isGranted
-            }))
-
-            const response = await staffService.updatePermissions({
-                staffId: parseInt(staffId),
-                permissions: permissionsArray
-            })
-            if (response.success) {
-                toast.success("Permissions updated successfully")
-                fetchStaffDetail()
-            }
-        } catch (error) {
-            console.error("Error updating permissions:", error)
-            // It might still fail if there are other issues, but this fixes the "Invalid input" regarding enums
-            toast.error("Failed to update permissions")
-        }
-    }
-
     const handleRemoveStaff = async () => {
         if (!staffId || !confirm("Are you sure you want to remove this staff member?")) return
         try {
@@ -170,115 +139,58 @@ export const StaffDetail = () => {
                 Back
             </Button>
 
-            <div className="bg-sidebar border-2 border-sidebar-border rounded-3xl p-6 shadow-lg">
-                <Tabs defaultValue="details" className="w-full">
-                    <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
-                        <TabsTrigger value="details">Staff Details</TabsTrigger>
-                        <TabsTrigger value="permissions">Permission</TabsTrigger>
-                    </TabsList>
+            {/* Removed bg-sidebar and Tabs wrapper */}
+            <div className="w-full">
+                <div className="flex flex-col items-center space-y-6">
+                    <Avatar className="w-32 h-32">
+                        <AvatarFallback className="bg-muted text-muted-foreground text-4xl">
+                            <User size={60} />
+                        </AvatarFallback>
+                    </Avatar>
 
-                    <TabsContent value="details" className="space-y-6">
-                        <div className="flex flex-col items-center space-y-6">
-                            <Avatar className="w-32 h-32">
-                                <AvatarFallback className="bg-muted text-muted-foreground text-4xl">
-                                    <User size={60} />
-                                </AvatarFallback>
-                            </Avatar>
+                    <h2 className="text-2xl font-bold">{staff.name}</h2>
 
-                            <h2 className="text-2xl font-bold">{staff.name}</h2>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
-                                <div className="bg-card border rounded-2xl p-4">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <User size={18} className="text-muted-foreground" />
-                                        <span className="text-sm text-muted-foreground">Name</span>
-                                    </div>
-                                    <p className="font-medium">{staff.name}</p>
-                                </div>
-                                <div className="bg-card border rounded-2xl p-4">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Briefcase size={18} className="text-muted-foreground" />
-                                        <span className="text-sm text-muted-foreground">Designation</span>
-                                    </div>
-                                    <p className="font-medium">{staff.designation || 'N/A'}</p>
-                                </div>
-                                <div className="bg-card border rounded-2xl p-4">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Mail size={18} className="text-muted-foreground" />
-                                        <span className="text-sm text-muted-foreground">Email</span>
-                                    </div>
-                                    <p className="font-medium">{staff.email}</p>
-                                </div>
-                                <div className="bg-card border rounded-2xl p-4">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Phone size={18} className="text-muted-foreground" />
-                                        <span className="text-sm text-muted-foreground">Phone</span>
-                                    </div>
-                                    <p className="font-medium">{staff.phone || 'N/A'}</p>
-                                </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
+                        <div className="bg-card border rounded-2xl p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <User size={18} className="text-muted-foreground" />
+                                <span className="text-sm text-muted-foreground">Name</span>
                             </div>
-
-                            <div className="flex gap-4 mt-6">
-                                <Button
-                                    variant="destructive"
-                                    className="rounded-full"
-                                    onClick={handleRemoveStaff}
-                                >
-                                    Remove Staff
-                                </Button>
-                            </div>
+                            <p className="font-medium">{staff.name}</p>
                         </div>
-                    </TabsContent>
-
-                    <TabsContent value="permissions" className="space-y-6">
-                        <div className="max-w-xl mx-auto space-y-6">
-                            <h3 className="text-xl font-semibold mb-6">Enable Permissions</h3>
-
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between p-4 bg-card border rounded-2xl">
-                                    <span className="font-medium">Billing</span>
-                                    <Switch
-                                        checked={permissions.billing}
-                                        onCheckedChange={() => handlePermissionChange('billing')}
-                                    />
-                                </div>
-
-                                <div className="flex items-center justify-between p-4 bg-card border rounded-2xl">
-                                    <span className="font-medium">Product Insight</span>
-                                    <Switch
-                                        checked={permissions.productInsight}
-                                        onCheckedChange={() => handlePermissionChange('productInsight')}
-                                    />
-                                </div>
-
-                                <div className="flex items-center justify-between p-4 bg-card border rounded-2xl">
-                                    <span className="font-medium">Inventory</span>
-                                    <Switch
-                                        checked={permissions.inventory}
-                                        onCheckedChange={() => handlePermissionChange('inventory')}
-                                    />
-                                </div>
-
-                                <div className="flex items-center justify-between p-4 bg-card border rounded-2xl">
-                                    <span className="font-medium">Reports</span>
-                                    <Switch
-                                        checked={permissions.reports}
-                                        onCheckedChange={() => handlePermissionChange('reports')}
-                                    />
-                                </div>
+                        <div className="bg-card border rounded-2xl p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Briefcase size={18} className="text-muted-foreground" />
+                                <span className="text-sm text-muted-foreground">Designation</span>
                             </div>
-
-                            <div className="flex justify-center mt-6">
-                                <Button
-                                    className="rounded-full"
-                                    onClick={handleUpdatePermissions}
-                                >
-                                    Update Permissions
-                                </Button>
-                            </div>
+                            <p className="font-medium">{staff.designation || 'N/A'}</p>
                         </div>
-                    </TabsContent>
-                </Tabs>
+                        <div className="bg-card border rounded-2xl p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Mail size={18} className="text-muted-foreground" />
+                                <span className="text-sm text-muted-foreground">Email</span>
+                            </div>
+                            <p className="font-medium">{staff.email}</p>
+                        </div>
+                        <div className="bg-card border rounded-2xl p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Phone size={18} className="text-muted-foreground" />
+                                <span className="text-sm text-muted-foreground">Phone</span>
+                            </div>
+                            <p className="font-medium">{staff.phone || 'N/A'}</p>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-4 mt-6">
+                        <Button
+                            variant="destructive"
+                            className="rounded-full"
+                            onClick={handleRemoveStaff}
+                        >
+                            Remove Staff
+                        </Button>
+                    </div>
+                </div>
             </div>
         </div>
     )

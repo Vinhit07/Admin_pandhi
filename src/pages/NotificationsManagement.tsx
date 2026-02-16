@@ -19,6 +19,14 @@ import { Loader2 } from "lucide-react"
 import { useOutlet } from "../context/OutletContext"
 import { notificationService } from "../services"
 import type { NotificationSchedule, Coupon } from "../types/api"
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+    DialogDescription,
+} from "../components/ui/dialog"
 import toast from "react-hot-toast"
 
 export const NotificationsManagement = () => {
@@ -57,18 +65,25 @@ export const NotificationsManagement = () => {
     const [autoSendNotif, setAutoSendNotif] = useState(false)
 
     useEffect(() => {
-        if (outletId) {
-            fetchData()
-        }
+        // Fetch initially or when outletId changes (including when it's null/'ALL')
+        fetchData()
     }, [outletId])
 
     const fetchData = async () => {
-        if (!outletId) return
+        // Allow fallback to ALL if null
+        const targetId = outletId || "ALL"
+
+        // For services that might expect a number or string. 
+        // Assuming getScheduledNotifications and getCoupons can take "ALL" or 0.
+        // If they strictly expect number, we might need 0. 
+        // But usually "ALL" string is safer for query param if backend supports it.
+        // Let's use targetId which is string|number|null (but we made it string|number).
+
         try {
             setLoading(true)
             const [notifRes, couponRes] = await Promise.all([
-                notificationService.getScheduledNotifications(outletId),
-                notificationService.getCoupons(outletId)
+                notificationService.getScheduledNotifications(targetId),
+                notificationService.getCoupons(targetId)
             ])
 
             console.log("📋 Coupon Response:", couponRes)
@@ -168,29 +183,40 @@ export const NotificationsManagement = () => {
         }
     }
 
-    const handleDeleteNotification = async (id: number) => {
-        try {
-            await notificationService.cancelNotification(id)
-            toast.success("Notification deleted successfully")
-            await fetchData()
-        } catch (error) {
-            console.error("Error deleting notification:", error)
-            toast.error("Failed to delete notification")
-        }
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+    const [itemToDelete, setItemToDelete] = useState<{ type: 'notification' | 'coupon', id: number } | null>(null)
+    const [isDeleteLoading, setIsDeleteLoading] = useState(false)
+
+    const handleDeleteNotification = (id: number) => {
+        setItemToDelete({ type: 'notification', id })
+        setIsDeleteDialogOpen(true)
     }
 
-    const handleDeleteCoupon = async (id: number) => {
-        if (!confirm("Are you sure you want to delete this coupon?")) {
-            return
-        }
+    const handleDeleteCoupon = (id: number) => {
+        setItemToDelete({ type: 'coupon', id })
+        setIsDeleteDialogOpen(true)
+    }
 
+    const handleConfirmDelete = async () => {
+        if (!itemToDelete) return
+
+        setIsDeleteLoading(true)
         try {
-            await notificationService.deleteCoupon(id)
-            toast.success("Coupon deleted successfully")
+            if (itemToDelete.type === 'notification') {
+                await notificationService.cancelNotification(itemToDelete.id)
+                toast.success("Notification deleted successfully")
+            } else {
+                await notificationService.deleteCoupon(itemToDelete.id)
+                toast.success("Coupon deleted successfully")
+            }
             await fetchData()
+            setIsDeleteDialogOpen(false)
+            setItemToDelete(null)
         } catch (error) {
-            console.error("Error deleting coupon:", error)
-            toast.error("Failed to delete coupon")
+            console.error(`Error deleting ${itemToDelete.type}:`, error)
+            toast.error(`Failed to delete ${itemToDelete.type}`)
+        } finally {
+            setIsDeleteLoading(false)
         }
     }
 
@@ -549,6 +575,40 @@ export const NotificationsManagement = () => {
                     )}
                 </TabsContent>
             </Tabs>
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirm Deletion</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this {itemToDelete?.type}? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 pt-4">
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsDeleteDialogOpen(false)}
+                            disabled={isDeleteLoading}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleConfirmDelete}
+                            disabled={isDeleteLoading}
+                        >
+                            {isDeleteLoading ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Deleting...
+                                </>
+                            ) : (
+                                "Delete"
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

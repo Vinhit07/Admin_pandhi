@@ -24,9 +24,10 @@ export const adminService = {
      * @param adminId - Admin ID
      * @returns Success confirmation
      */
-    verifyAdmin: async (adminId: number): Promise<any> => {
+    verifyAdmin: async (adminId: number, outletIds: number[]): Promise<any> => {
         return await apiRequest<any>(`${API_ENDPOINTS.VERIFY_ADMIN}/${adminId}`, {
-            method: 'PUT',
+            method: 'POST',
+            body: { outletIds }
         });
     },
 
@@ -49,7 +50,7 @@ export const adminService = {
     mapOutletToAdmin: async (adminId: number, outletId: number): Promise<any> => {
         return await apiRequest<any>(API_ENDPOINTS.MAP_OUTLETS_TO_ADMIN, {
             method: 'POST',
-            body: { adminId, outletId }
+            body: { adminId, outletIds: [outletId] }
         });
     },
 

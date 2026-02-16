@@ -20,12 +20,14 @@ export const ticketService = {
     /**
      * Close a ticket
      * @param ticketId - Ticket ID
+     * @param resolutionNote - Resolution Note
+     * @param resolvedAt - Resolved At Timestamp (ISO String)
      * @returns Success response
      */
-    closeTicket: async (ticketId: number): Promise<ApiResponse<any>> => {
+    closeTicket: async (ticketId: number, resolutionNote: string, resolvedAt: string): Promise<ApiResponse<any>> => {
         return await apiRequest<ApiResponse<any>>(API_ENDPOINTS.CLOSE_TICKET, {
             method: 'POST',
-            body: { ticketId },
+            body: { ticketId, resolutionNote, resolvedAt },
         });
     },
 };

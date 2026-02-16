@@ -89,13 +89,27 @@ export const Onboarding = () => {
         }
     }
 
-    const handleVerifyAdmin = async (id: number) => {
+    const handleVerifyAdmin = (id: number) => {
+        setSelectedAdminId(id)
+        setIsMapDialogOpen(true)
+    }
+
+    const handleVerifyAdminSubmit = async () => {
+        if (!selectedAdminId || !selectedOutletId) {
+            toast.error("Please select a vendor")
+            return
+        }
+
         try {
-            await adminService.verifyAdmin(id)
-            setAdmins(admins.filter(a => a.id !== id))
+            await adminService.verifyAdmin(selectedAdminId, [parseInt(selectedOutletId)])
+            setAdmins(admins.filter(a => a.id !== selectedAdminId))
             toast.success("Admin verified successfully")
-        } catch (error) {
-            toast.error("Failed to verify admin")
+            setIsMapDialogOpen(false)
+            setSelectedOutletId("")
+            setSelectedAdminId(null)
+        } catch (error: any) {
+            const message = error.response?.data?.message || "Failed to verify admin"
+            toast.error(message)
         }
     }
 
@@ -120,24 +134,6 @@ export const Onboarding = () => {
             setSelectedStaffRole("COUNTER")
         } catch (error) {
             toast.error("Failed to verify staff")
-        }
-    }
-
-    const openMapDialog = (adminId: number) => {
-        setSelectedAdminId(adminId)
-        setIsMapDialogOpen(true)
-    }
-
-    const handleMapOutlet = async () => {
-        if (!selectedAdminId || !selectedOutletId) return
-
-        try {
-            await adminService.mapOutletToAdmin(selectedAdminId, parseInt(selectedOutletId))
-            toast.success("Outlet mapped successfully")
-            setIsMapDialogOpen(false)
-            setSelectedOutletId("")
-        } catch (error) {
-            toast.error("Failed to map outlet")
         }
     }
 
@@ -188,9 +184,6 @@ export const Onboarding = () => {
                                     </div>
                                 </div>
                                 <div className="flex flex-col gap-2 mt-4">
-                                    <Button size="sm" variant="outline" className="w-full" onClick={() => openMapDialog(admin.id)}>
-                                        <Store className="mr-2 h-4 w-4" /> Map Outlet
-                                    </Button>
                                     <Button size="sm" className="w-full" onClick={() => handleVerifyAdmin(admin.id)}>
                                         <Check className="mr-2 h-4 w-4" /> Verify & Approve
                                     </Button>
@@ -234,9 +227,9 @@ export const Onboarding = () => {
             <Dialog open={isMapDialogOpen} onOpenChange={setIsMapDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Map Outlet to Admin</DialogTitle>
+                        <DialogTitle>Verify Admin</DialogTitle>
                         <DialogDescription>
-                            Select an outlet to assign to this admin before verification.
+                            Select an outlet to assign to this admin for verification.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-4">
@@ -256,7 +249,7 @@ export const Onboarding = () => {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsMapDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleMapOutlet}>Map Outlet</Button>
+                        <Button onClick={handleVerifyAdminSubmit}>Verify Admin</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

@@ -39,7 +39,7 @@ const menuItems: MenuItem[] = [
     { path: '/wallet-management', label: 'Wallet Management', icon: <Wallet size={20} /> },
     { path: '/ticket-management', label: 'Ticket Management', icon: <Ticket size={20} /> },
     { path: '/notifications-management', label: 'Notifications', icon: <Bell size={20} /> },
-    { path: '/app-management', label: 'App Settings', icon: <Settings size={20} /> },
+    //{ path: '/app-management', label: 'App Settings', icon: <Settings size={20} /> },
 ]
 
 interface SidebarProps {
@@ -49,7 +49,7 @@ interface SidebarProps {
 
 export const Sidebar = ({ isCollapsed, setIsCollapsed }: SidebarProps) => {
     const location = useLocation()
-    const { signOut } = useAuth()
+    const { signOut, user } = useAuth()
 
     return (
         <aside className={`${isCollapsed ? 'w-20' : 'w-64'} flex flex-col h-full bg-card border-r-2 border-border/50 shadow-lg transition-all duration-300 z-40`}>
@@ -58,7 +58,9 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed }: SidebarProps) => {
                 {!isCollapsed && (
                     <div className="flex items-center gap-2 font-bold text-primary truncate">
                         <LayoutDashboard size={24} />
-                        <span className="text-lg">Admin Controls</span>
+                        <span className="text-lg">
+                            {user?.role === 'SUPERADMIN' ? 'SuperAdmin Controls' : 'Admin Controls'}
+                        </span>
                     </div>
                 )}
                 <button

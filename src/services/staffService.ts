@@ -17,7 +17,7 @@ export const staffService = {
      * @param outletId - Outlet ID
      * @returns List of staff members
      */
-    getStaffs: async (outletId: number): Promise<ApiResponse<Staff[]>> => {
+    getStaffs: async (outletId: number | string): Promise<ApiResponse<Staff[]>> => {
         return await apiRequest<ApiResponse<Staff[]>>(`${API_ENDPOINTS.GET_STAFFS}/${outletId}`, {
             method: 'GET',
         });

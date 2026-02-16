@@ -73,6 +73,7 @@ const AdminSignUp: React.FC = () => {
                     name: formData.name,
                     email: formData.email,
                     password: formData.password,
+                    retypePassword: formData.confirmPassword,
                     phone: formData.phone || undefined,
                 },
             });
@@ -97,7 +98,7 @@ const AdminSignUp: React.FC = () => {
                     </div>
                     <h1 className="text-4xl font-bold text-foreground mb-4">Join Our Team</h1>
                     <p className="text-lg text-muted-foreground">
-                        Create admin account to manage HungerBox outlets and operations.
+                        Create admin account to manage UPS Cafe Vendors and operations.
                     </p>
                 </div>
             </div>
@@ -110,7 +111,7 @@ const AdminSignUp: React.FC = () => {
                         <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
                             <UserPlus className="h-8 w-8 text-primary-foreground" />
                         </div>
-                        <h1 className="text-2xl font-bold text-foreground">HungerBox Admin</h1>
+                        <h1 className="text-2xl font-bold text-foreground">UPS Cafe Admin</h1>
                     </div>
 
                     <div className="bg-card rounded-xl border-2 border-border p-8 shadow-lg">
@@ -174,7 +175,7 @@ const AdminSignUp: React.FC = () => {
 
                             <div>
                                 <label htmlFor="phone" className="block text-sm font-medium text-foreground mb-1">
-                                    Phone Number <span className="text-muted-foreground">(Optional)</span>
+                                    Phone Number
                                 </label>
                                 <input
                                     id="phone"

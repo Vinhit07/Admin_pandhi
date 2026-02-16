@@ -58,20 +58,21 @@ export const ExpenditureManagement = () => {
     const [paidTo, setPaidTo] = useState("")
 
     useEffect(() => {
-        if (outletId) {
-            fetchData()
-        }
+        // Fetch initially or when outletId changes (including when it's null/'ALL')
+        fetchData()
     }, [outletId])
 
     const fetchData = async () => {
-        if (!outletId) return
         try {
             setLoading(true)
+            // Handle null as 'ALL' (or 0 if needed by service, but payload below handles it)
+            const targetOutletId = outletId || "ALL"
+
             const payload = {
-                outletId: outletId === 'ALL' ? 0 : outletId
+                outletId: (targetOutletId === 'ALL') ? 0 : targetOutletId
             }
             const [expensesRes, overviewRes] = await Promise.all([
-                expenditureService.getExpenses(outletId),
+                expenditureService.getExpenses(targetOutletId),
                 reportService.getDashboardOverview(payload)
             ])
             console.log("💰 Expenditure Response:", expensesRes)

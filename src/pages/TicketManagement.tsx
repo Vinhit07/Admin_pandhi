@@ -47,19 +47,16 @@ export const TicketManagement = () => {
     const [isChatModalOpen, setIsChatModalOpen] = useState(false)
 
     useEffect(() => {
-        if (outletId) {
-            setLoading(true)
-            fetchTickets()
-        } else {
-            setLoading(false)
-        }
+        // Fetch initially or when outletId changes (including when it's null/'ALL')
+        setLoading(true)
+        fetchTickets()
     }, [outletId])
 
     const fetchTickets = async () => {
-        if (!outletId) return
         try {
             setLoading(true)
-            const response = await ticketService.getTickets(outletId)
+            const targetOutletId = outletId || "ALL"
+            const response = await ticketService.getTickets(targetOutletId)
             console.log("🎫 Tickets Response:", response)
 
             // 2. FIXED: Removed 'response.success' check. 
@@ -94,16 +91,19 @@ export const TicketManagement = () => {
 
     const handleResolveTicket = async (ticketId: string, resolutionNote: string) => {
         try {
-            const response = await ticketService.closeTicket(Number(ticketId))
+            const resolvedAt = new Date().toISOString()
+            const response = await ticketService.closeTicket(Number(ticketId), resolutionNote, resolvedAt)
             // Adjust this check depending on your closeTicket API response
             if (response) {
                 toast.success("Ticket resolved successfully")
                 fetchTickets()
                 setIsChatModalOpen(false)
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error resolving ticket:", error)
-            toast.error("Failed to resolve ticket")
+            // Extract error message from API response if available
+            const errorMsg = error.response?.data?.message || error.message || "Failed to resolve ticket";
+            toast.error(errorMsg)
         }
     }
 

@@ -32,28 +32,33 @@ export const CustomerManagement = () => {
     const { outletId } = useOutlet()
 
     useEffect(() => {
-        if (outletId) {
-            fetchCustomers()
-        }
+        // Fetch initially or when outletId changes (including when it's null/'ALL')
+        fetchCustomers()
     }, [outletId])
 
     const fetchCustomers = async () => {
-        if (!outletId) return
-
         try {
             setLoading(true)
-            const response = await customerService.getCustomers(outletId)
+            const targetOutletId = outletId || "ALL"
+            const response = await customerService.getCustomers(targetOutletId)
             console.log("👥 Raw Response:", response)
 
             // 2. Fixed Data Extraction Logic
             // The log shows data is inside response.data.customers
             let customerData: Customer[] = []
 
-            if (response?.data?.customers && Array.isArray(response.data.customers)) {
-                customerData = response.data.customers
-            } else if (response?.customers && Array.isArray(response.customers)) {
+            // Check if response has data property which has customers
+            if ((response as any)?.data?.customers && Array.isArray((response as any).data.customers)) {
+                customerData = (response as any).data.customers
+            } else if ((response as any)?.customers && Array.isArray((response as any).customers)) {
                 // Fallback if service returns the data object directly
-                customerData = response.customers
+                customerData = (response as any).customers
+            } else if (Array.isArray(response)) {
+                // Fallback if response itself is array
+                customerData = response as any
+            } else if ((response as any).data && Array.isArray((response as any).data)) {
+                // Generic data array
+                customerData = (response as any).data
             }
 
             console.log("✅ Set Customers:", customerData)
