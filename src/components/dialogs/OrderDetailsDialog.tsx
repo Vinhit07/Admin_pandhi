@@ -107,25 +107,25 @@ export const OrderDetailsDialog = ({ open, onClose, order }: OrderDetailsDialogP
                     <div>
                         <table className="w-full border-collapse">
                             <thead>
-                                <tr className="bg-gray-50">
-                                    <th className="border p-2 text-left">Item</th>
-                                    <th className="border p-2 text-center">Quantity</th>
-                                    <th className="border p-2 text-right">Unit Price</th>
-                                    <th className="border p-2 text-right">Total Price</th>
+                                <tr className="bg-gray-50 dark:bg-gray-800">
+                                    <th className="border border-gray-200 dark:border-gray-700 p-2 text-left">Item</th>
+                                    <th className="border border-gray-200 dark:border-gray-700 p-2 text-center">Quantity</th>
+                                    <th className="border border-gray-200 dark:border-gray-700 p-2 text-right">Unit Price</th>
+                                    <th className="border border-gray-200 dark:border-gray-700 p-2 text-right">Total Price</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {(order.items || []).map((item, index) => (
                                     <tr key={index}>
-                                        <td className="border p-2">{item.productName}</td>
-                                        <td className="border p-2 text-center">{item.quantity}</td>
-                                        <td className="border p-2 text-right">₹{item.unitPrice.toFixed(2)}</td>
-                                        <td className="border p-2 text-right">₹{item.totalPrice.toFixed(2)}</td>
+                                        <td className="border border-gray-200 dark:border-gray-700 p-2">{item.productName}</td>
+                                        <td className="border border-gray-200 dark:border-gray-700 p-2 text-center">{item.quantity}</td>
+                                        <td className="border border-gray-200 dark:border-gray-700 p-2 text-right">₹{item.unitPrice.toFixed(2)}</td>
+                                        <td className="border border-gray-200 dark:border-gray-700 p-2 text-right">₹{item.totalPrice.toFixed(2)}</td>
                                     </tr>
                                 ))}
-                                <tr className="font-semibold bg-gray-50">
-                                    <td colSpan={3} className="border p-2 text-right">Grand Total</td>
-                                    <td className="border p-2 text-right">₹{order.totalAmount.toFixed(2)}</td>
+                                <tr className="font-semibold bg-gray-50 dark:bg-gray-800">
+                                    <td colSpan={3} className="border border-gray-200 dark:border-gray-700 p-2 text-right">Grand Total</td>
+                                    <td className="border border-gray-200 dark:border-gray-700 p-2 text-right">₹{order.totalAmount.toFixed(2)}</td>
                                 </tr>
                             </tbody>
                         </table>

@@ -38,6 +38,7 @@ interface RevenueRow {
 interface ProfitRow {
     month: string
     revenue: number
+    sales: number
     expenses: number
     profit: number
     margin: number
@@ -142,13 +143,29 @@ export const ReportsAnalytics = () => {
                     const profitParams = { year: parseInt(selectedYear) }
                     const profitRes = await reportService.getProfitLossTrends(targetOutletId, profitParams)
 
+                    let rawProfitData: any[] = []
                     if (Array.isArray(profitRes)) {
-                        setProfitData(profitRes)
+                        rawProfitData = profitRes
                     } else if (profitRes?.data && Array.isArray(profitRes.data)) {
-                        setProfitData(profitRes.data)
-                    } else {
-                        setProfitData([])
+                        rawProfitData = profitRes.data
                     }
+
+                    // Map backend fields (sales) to frontend fields (revenue) and compute margin
+                    const mappedProfitData: ProfitRow[] = rawProfitData.map((row: any) => {
+                        const revenue = row.sales || row.revenue || 0
+                        const expenses = row.expenses || 0
+                        const profit = row.profit || (revenue - expenses)
+                        const margin = revenue > 0 ? parseFloat(((profit / revenue) * 100).toFixed(1)) : 0
+                        return {
+                            month: row.month,
+                            revenue,
+                            sales: revenue,
+                            expenses,
+                            profit,
+                            margin,
+                        }
+                    })
+                    setProfitData(mappedProfitData)
                     break
 
                 case "customers":
@@ -161,7 +178,7 @@ export const ReportsAnalytics = () => {
                                 name: "New Customers",
                                 customerName: "New Customers",
                                 orders: customerRaw.newCustomers || 0,
-                                totalSpent: 0,
+                                totalSpent: customerRaw.newCustomerRevenue || 0,
                                 lastOrder: "-",
                                 status: "New"
                             },
@@ -169,7 +186,7 @@ export const ReportsAnalytics = () => {
                                 name: "Returning Customers",
                                 customerName: "Returning Customers",
                                 orders: customerRaw.returningCustomers || 0,
-                                totalSpent: 0,
+                                totalSpent: customerRaw.returningCustomerRevenue || 0,
                                 lastOrder: "-",
                                 status: "Active"
                             }

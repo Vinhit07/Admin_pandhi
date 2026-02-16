@@ -30,7 +30,7 @@ import {
 import toast from "react-hot-toast"
 
 export const NotificationsManagement = () => {
-    const { outletId } = useOutlet()
+    const { outletId, outlets } = useOutlet()
 
     const [activeTab, setActiveTab] = useState("notifications")
     const [showCreateNotification, setShowCreateNotification] = useState(false)
@@ -108,8 +108,21 @@ export const NotificationsManagement = () => {
     }
 
     const handleScheduleNotification = async () => {
-        if (!notifTitle || !notifMessage || !outletId) {
-            toast.error("Please fill in required fields")
+        if (!notifTitle || !notifMessage) {
+            toast.error("Please fill in required fields (Title and Message)")
+            return
+        }
+
+        // Resolve effective outlet ID: use selected outlet, or fall back to first available
+        let effectiveOutletId: number | null = null
+        if (outletId && outletId !== 'ALL') {
+            effectiveOutletId = typeof outletId === 'string' ? parseInt(outletId) : outletId
+        } else if (outlets.length > 0) {
+            effectiveOutletId = outlets[0].id
+        }
+
+        if (!effectiveOutletId) {
+            toast.error("No outlet available. Please select an outlet.")
             return
         }
 
@@ -120,7 +133,7 @@ export const NotificationsManagement = () => {
                 targetAudience: 'ALL',
                 scheduledDate: notifScheduleDate,
                 scheduledTime: notifScheduleTime + ":00",
-                outletId: typeof outletId === 'string' ? parseInt(outletId) : outletId,
+                outletId: effectiveOutletId,
                 priority: notifPriority || "MEDIUM",
             })
 
