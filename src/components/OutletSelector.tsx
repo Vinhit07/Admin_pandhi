@@ -40,7 +40,7 @@ export const OutletSelector = () => {
                 onValueChange={(value) => selectOutlet(parseInt(value))}
             >
                 <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Select outlet" />
+                    <SelectValue placeholder="Select vendor" />
                 </SelectTrigger>
                 <SelectContent>
                     {outlets.map((outlet) => (

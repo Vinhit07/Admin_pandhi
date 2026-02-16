@@ -29,6 +29,10 @@ export const OutletManagement = () => {
     })
 
 
+    const [deleteId, setDeleteId] = useState<number | null>(null)
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+    const [errors, setErrors] = useState<{ [key: string]: string }>({})
+
     useEffect(() => {
         fetchOutlets()
     }, [])
@@ -49,10 +53,30 @@ export const OutletManagement = () => {
         }
     }
 
+    const validateForm = () => {
+        const newErrors: { [key: string]: string } = {}
+        if (!formData.name.trim()) newErrors.name = "Name is required"
+        if (!formData.address.trim()) newErrors.address = "Address is required"
+        if (!formData.phone.trim()) {
+            newErrors.phone = "Phone is required"
+        } else if (!/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) {
+            // Simple 10-digit validation
+            newErrors.phone = "Enter a valid 10-digit phone number"
+        }
+        if (!formData.email.trim()) {
+            newErrors.email = "Email is required"
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+            newErrors.email = "Enter a valid email address"
+        }
+
+        setErrors(newErrors)
+        return Object.keys(newErrors).length === 0
+    }
+
     const handleAddOutlet = async () => {
         try {
-            if (!formData.name || !formData.address || !formData.phone || !formData.email) {
-                toast.error("Please fill in all fields")
+            if (!validateForm()) {
+                toast.error("Please fix the errors in the form")
                 return
             }
 
@@ -61,6 +85,7 @@ export const OutletManagement = () => {
                 setOutlets([...outlets, response.data])
                 setIsAddDialogOpen(false)
                 setFormData({ name: '', address: '', phone: '', email: '' })
+                setErrors({})
                 toast.success("Outlet added successfully")
             }
         } catch (error: any) {
@@ -69,18 +94,26 @@ export const OutletManagement = () => {
         }
     }
 
-    const handleRemoveOutlet = async (id: number) => {
-        if (!confirm('Are you sure you want to remove this outlet? This action cannot be undone.')) return
+    const confirmDelete = (id: number) => {
+        setDeleteId(id)
+        setIsDeleteDialogOpen(true)
+    }
+
+    const handleRemoveOutlet = async () => {
+        if (!deleteId) return
 
         try {
-            const response = await outletService.removeOutlet(id)
+            const response = await outletService.removeOutlet(deleteId)
             if (response.success) {
-                setOutlets(outlets.filter(o => o.id !== id))
+                setOutlets(outlets.filter(o => o.id !== deleteId))
                 toast.success("Outlet removed successfully")
             }
         } catch (error: any) {
             console.error('Error removing outlet:', error)
             toast.error(error.message || "Failed to remove outlet")
+        } finally {
+            setIsDeleteDialogOpen(false)
+            setDeleteId(null)
         }
     }
 
@@ -96,33 +129,41 @@ export const OutletManagement = () => {
         <div className="p-8 max-w-[1600px] mx-auto space-y-8">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Outlet Management</h1>
-                    <p className="text-muted-foreground mt-2">Manage outlets across different locations.</p>
+                    <h1 className="text-3xl font-bold tracking-tight">Vendor Management</h1>
+                    <p className="text-muted-foreground mt-2">Manage vendors across different locations.</p>
                 </div>
 
-                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+                    setIsAddDialogOpen(open)
+                    if (!open) setErrors({})
+                }}>
                     <DialogTrigger asChild>
                         <Button className="gap-2">
                             <Plus size={16} />
-                            Add New Outlet
+                            Add New Vendor
                         </Button>
                     </DialogTrigger>
                     <DialogContent>
                         <DialogHeader>
-                            <DialogTitle>Add New Outlet</DialogTitle>
+                            <DialogTitle>Add New Vendor</DialogTitle>
                             <DialogDescription>
-                                Enter the details of the new outlet below.
+                                Enter the details of the new vendor below.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
                             <div className="space-y-2">
-                                <Label htmlFor="name">Outlet Name</Label>
+                                <Label htmlFor="name">Vendor Name</Label>
                                 <Input
                                     id="name"
                                     placeholder="e.g. HungerBox HQ"
                                     value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    onChange={(e) => {
+                                        setFormData({ ...formData, name: e.target.value })
+                                        if (errors.name) setErrors({ ...errors, name: '' })
+                                    }}
+                                    className={errors.name ? "border-red-500" : ""}
                                 />
+                                {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="address">Address</Label>
@@ -130,8 +171,13 @@ export const OutletManagement = () => {
                                     id="address"
                                     placeholder="Full address"
                                     value={formData.address}
-                                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                                    onChange={(e) => {
+                                        setFormData({ ...formData, address: e.target.value })
+                                        if (errors.address) setErrors({ ...errors, address: '' })
+                                    }}
+                                    className={errors.address ? "border-red-500" : ""}
                                 />
+                                {errors.address && <p className="text-xs text-red-500">{errors.address}</p>}
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
@@ -140,8 +186,13 @@ export const OutletManagement = () => {
                                         id="phone"
                                         placeholder="+91..."
                                         value={formData.phone}
-                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                        onChange={(e) => {
+                                            setFormData({ ...formData, phone: e.target.value })
+                                            if (errors.phone) setErrors({ ...errors, phone: '' })
+                                        }}
+                                        className={errors.phone ? "border-red-500" : ""}
                                     />
+                                    {errors.phone && <p className="text-xs text-red-500">{errors.phone}</p>}
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="email">Email</Label>
@@ -150,14 +201,19 @@ export const OutletManagement = () => {
                                         type="email"
                                         placeholder="outlet@example.com"
                                         value={formData.email}
-                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                        onChange={(e) => {
+                                            setFormData({ ...formData, email: e.target.value })
+                                            if (errors.email) setErrors({ ...errors, email: '' })
+                                        }}
+                                        className={errors.email ? "border-red-500" : ""}
                                     />
+                                    {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
                                 </div>
                             </div>
                         </div>
                         <DialogFooter>
                             <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-                            <Button onClick={handleAddOutlet}>Add Outlet</Button>
+                            <Button onClick={handleAddOutlet}>Add Vendor</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
@@ -191,7 +247,7 @@ export const OutletManagement = () => {
                                 variant="ghost"
                                 size="sm"
                                 className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => handleRemoveOutlet(outlet.id)}
+                                onClick={() => confirmDelete(outlet.id)}
                             >
                                 <Trash2 size={16} className="mr-2" />
                                 Remove
@@ -204,9 +260,25 @@ export const OutletManagement = () => {
             {outlets.length === 0 && !loading && (
                 <div className="h-64 flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed border-border rounded-xl">
                     <Store className="w-12 h-12 mb-4 opacity-20" />
-                    <p>No outlets found. Add first outlet above.</p>
+                    <p>No vendors found. Add first vendor above.</p>
                 </div>
             )}
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete Vendor</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this vendor? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
+                        <Button variant="destructive" onClick={handleRemoveOutlet}>Delete</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

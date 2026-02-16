@@ -22,7 +22,7 @@ export const TopNav = () => {
 
     const allTabs = [
         { id: 'admin', label: 'Admin', path: '/', icon: <LayoutDashboard size={18} /> },
-        { id: 'outlet', label: 'Outlet', path: '/outlets', icon: <Store size={18} /> },
+        { id: 'outlet', label: 'Vendor', path: '/outlets', icon: <Store size={18} /> },
         { id: 'onboarding', label: 'Onboarding', path: '/onboarding', icon: <UserPlus size={18} /> },
         { id: 'admin-management', label: 'Admin Management', path: '/admin-management', icon: <Shield size={18} /> },
     ];
@@ -47,14 +47,14 @@ export const TopNav = () => {
             <div className="flex items-center gap-4">
                 {/* User Profile Info */}
                 <div className="relative flex items-center gap-1.5">
-                {/* Initials */}
-                <span className="text-primary-foreground font-bold text-xs">
-                    {user?.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'AD'}
-                </span>
-                
-                {/* Status Dot */}
-                <div className="w-2.5 h-2.5 rounded-full bg-green-500 border border-background animate-pulse"></div>
-            </div>
+                    {/* Initials */}
+                    <span className="text-primary-foreground font-bold text-xs">
+                        {user?.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'AD'}
+                    </span>
+
+                    {/* Status Dot */}
+                    <div className="w-2.5 h-2.5 rounded-full bg-green-500 border border-background animate-pulse"></div>
+                </div>
 
 
                 <nav className="flex items-center gap-2">

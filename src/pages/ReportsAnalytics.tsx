@@ -267,12 +267,12 @@ export const ReportsAnalytics = () => {
         {
             accessorKey: "productName",
             header: "Product",
-            cell: ({ row }) => <span className="text-foreground font-medium">{row.getValue("productName") || 'N/A'}</span>,
+            cell: ({ row }) => <span className="text-foreground font-bold">{row.getValue("productName") || 'N/A'}</span>,
         },
         {
             accessorKey: "category",
             header: "Category",
-            cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("category") || 'N/A'}</span>,
+            cell: ({ row }) => <span className="text-foreground">{row.getValue("category") || 'N/A'}</span>,
         },
         {
             id: "price",
@@ -280,18 +280,18 @@ export const ReportsAnalytics = () => {
             cell: ({ row }) => {
                 const qty = row.original.quantity
                 const rev = row.original.revenue
-                return <span className="text-green-500 font-medium">₹{qty > 0 ? (rev / qty).toFixed(2) : '0.00'}</span>
+                return <span className="text-green-700 font-medium">₹{qty > 0 ? (rev / qty).toFixed(2) : '0.00'}</span>
             },
         },
         {
             accessorKey: "totalOrders",
             header: "Orders",
-            cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("totalOrders") || 0}</span>,
+            cell: ({ row }) => <span className="text-foreground">{row.getValue("totalOrders") || 0}</span>,
         },
         {
             accessorKey: "revenue",
             header: "Revenue",
-            cell: ({ row }) => <span className="text-green-500 font-semibold">₹{((row.getValue("revenue") as number) || 0).toLocaleString()}</span>,
+            cell: ({ row }) => <span className="text-green-700 font-bold">₹{((row.getValue("revenue") as number) || 0).toLocaleString()}</span>,
         },
     ]
 
@@ -299,27 +299,27 @@ export const ReportsAnalytics = () => {
         {
             accessorKey: "source",
             header: "Source",
-            cell: ({ row }) => <span className="text-foreground font-medium">{row.getValue("source") || 'N/A'}</span>,
+            cell: ({ row }) => <span className="text-foreground font-bold">{row.getValue("source") || 'N/A'}</span>,
         },
         {
             accessorKey: "category",
             header: "Category",
-            cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("category") || 'N/A'}</span>,
+            cell: ({ row }) => <span className="text-foreground">{row.getValue("category") || 'N/A'}</span>,
         },
         {
             accessorKey: "amount",
             header: "Amount",
-            cell: ({ row }) => <span className="text-green-500 font-semibold">₹{((row.getValue("amount") as number) || 0).toLocaleString()}</span>,
+            cell: ({ row }) => <span className="text-green-700 font-bold">₹{((row.getValue("amount") as number) || 0).toLocaleString()}</span>,
         },
         {
             accessorKey: "percentage",
             header: "Percentage",
-            cell: ({ row }) => <span className="text-blue-500">{row.getValue("percentage") || 0}%</span>,
+            cell: ({ row }) => <span className="text-blue-700 font-medium">{row.getValue("percentage") || 0}%</span>,
         },
         {
             accessorKey: "transactions",
             header: "Transactions",
-            cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("transactions") || 0}</span>,
+            cell: ({ row }) => <span className="text-foreground">{row.getValue("transactions") || 0}</span>,
         },
     ]
 
@@ -327,12 +327,12 @@ export const ReportsAnalytics = () => {
         {
             accessorKey: "month",
             header: "Month",
-            cell: ({ row }) => <span className="text-foreground font-medium">{row.getValue("month") || 'N/A'}</span>,
+            cell: ({ row }) => <span className="text-foreground font-bold">{row.getValue("month") || 'N/A'}</span>,
         },
         {
             accessorKey: "revenue",
             header: "Revenue",
-            cell: ({ row }) => <span className="text-green-500 font-medium">₹{((row.getValue("revenue") as number) || 0).toLocaleString()}</span>,
+            cell: ({ row }) => <span className="text-green-700 font-bold">₹{((row.getValue("revenue") as number) || 0).toLocaleString()}</span>,
         },
         {
             accessorKey: "expenses",
@@ -344,13 +344,13 @@ export const ReportsAnalytics = () => {
             header: "Profit/Loss",
             cell: ({ row }) => {
                 const profit = (row.getValue("profit") as number) || 0
-                return <span className={`font-semibold ${profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>₹{profit.toLocaleString()}</span>
+                return <span className={`font-bold ${profit >= 0 ? 'text-green-700' : 'text-red-500'}`}>₹{profit.toLocaleString()}</span>
             },
         },
         {
             accessorKey: "margin",
             header: "Margin",
-            cell: ({ row }) => <span className="text-blue-500">{row.getValue("margin") || 0}%</span>,
+            cell: ({ row }) => <span className="text-blue-700 font-medium">{row.getValue("margin") || 0}%</span>,
         },
     ]
 
@@ -358,24 +358,24 @@ export const ReportsAnalytics = () => {
         {
             accessorKey: "name",
             header: "Customer",
-            cell: ({ row }) => <span className="text-foreground font-medium">{row.original.name || row.original.customerName || 'N/A'}</span>,
+            cell: ({ row }) => <span className="text-foreground font-bold">{row.original.name || row.original.customerName || 'N/A'}</span>,
         },
         {
             accessorKey: "orders",
             header: "Orders",
-            cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("orders") || 0}</span>,
+            cell: ({ row }) => <span className="text-foreground">{row.getValue("orders") || 0}</span>,
         },
         {
             accessorKey: "totalSpent",
             header: "Total Spent",
-            cell: ({ row }) => <span className="text-green-500 font-semibold">₹{((row.getValue("totalSpent") as number) || 0).toLocaleString()}</span>,
+            cell: ({ row }) => <span className="text-green-700 font-bold">₹{((row.getValue("totalSpent") as number) || 0).toLocaleString()}</span>,
         },
         {
             accessorKey: "lastOrder",
             header: "Last Order",
             cell: ({ row }) => {
                 const val = row.getValue("lastOrder") as string
-                return <span className="text-muted-foreground">{val && val !== '-' ? formatDate(val) : 'N/A'}</span>
+                return <span className="text-foreground">{val && val !== '-' ? formatDate(val) : 'N/A'}</span>
             },
         },
         {

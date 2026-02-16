@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react"
-import { useAuth } from "../context/AuthContext"
+
 import { useOutlet } from "../context/OutletContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card"
 import { reportService } from "../services"
-import { Loader2, Calendar, RefreshCw } from "lucide-react"
+import { formatDateDDMMYYYY } from "../lib/dateUtils"
+import { Loader2, RefreshCw } from "lucide-react"
 import {
     BarChart,
     Bar,
@@ -19,7 +20,7 @@ import {
     LineChart,
     Line
 } from "recharts"
-import type { AnalyticsParams } from "../types/api"
+
 
 export const Home = () => {
     const { outletId } = useOutlet()
@@ -39,7 +40,9 @@ export const Home = () => {
 
     useEffect(() => {
         // Wait for outletId to be initialized (it might be null briefly)
-        if (outletId === null) return;
+        // Wait for outletId to be initialized (it might be null briefly)
+        // CHANGE: Allow null (All Vendors)
+        if (outletId === undefined) return;
 
         fetchAllData()
     }, [dateRange, outletId])
@@ -53,7 +56,7 @@ export const Home = () => {
                 to: dateRange.to
             }
 
-            if (outletId !== 'ALL') {
+            if (outletId && outletId !== 'ALL') {
                 params.outletId = Number(outletId);
             }
 
@@ -82,7 +85,10 @@ export const Home = () => {
             const overviewData = (overview as any)?.data ? (overview as any).data : overview
 
             setDashboardData(overviewData)
-            setRevenueTrend(Array.isArray(revenue) ? revenue : [])
+            const sortedRevenue = Array.isArray(revenue)
+                ? revenue.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                : []
+            setRevenueTrend(sortedRevenue)
             setOrderStatusDist(orderStatus)
             setOrderSourceDist(orderSource)
             setTopSellingItems(Array.isArray(topItems) ? topItems : [])
@@ -195,7 +201,7 @@ export const Home = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <Card>
                     <CardHeader className="pb-3">
-                        <CardDescription>Active Stores</CardDescription>
+                        <CardDescription>Active Vendors</CardDescription>
                         <CardTitle className="text-3xl text-green-600">
                             {dashboardData?.totalActiveOutlets || 0}
                         </CardTitle>
@@ -231,7 +237,7 @@ export const Home = () => {
 
                 <Card>
                     <CardHeader className="pb-3">
-                        <CardDescription>Top Performing Store</CardDescription>
+                        <CardDescription>Top Performing Vendor</CardDescription>
                         <CardTitle className="text-xl text-cyan-600">
                             {dashboardData?.topPerformingOutlet?.name || 'N/A'}
                         </CardTitle>
@@ -252,7 +258,11 @@ export const Home = () => {
                             <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={revenueTrend} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                                    <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                                    <XAxis
+                                        dataKey="date"
+                                        tick={{ fontSize: 12 }}
+                                        tickFormatter={(val) => formatDateDDMMYYYY(val)}
+                                    />
                                     <YAxis tick={{ fontSize: 12 }} />
                                     <Tooltip />
                                     <Legend />

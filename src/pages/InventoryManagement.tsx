@@ -49,9 +49,13 @@ export const InventoryManagement = () => {
 
     const [loading, setLoading] = useState(false)
 
-    // You might want to use dynamic dates here instead of hardcoded strings
-    const [fromDate, setFromDate] = useState("15-01-2026")
-    const [toDate, setToDate] = useState("26-01-2026")
+    // Initialize with YYYY-MM-DD format
+    const [fromDate, setFromDate] = useState(() => {
+        const d = new Date()
+        d.setDate(d.getDate() - 30)
+        return d.toISOString().split('T')[0]
+    })
+    const [toDate, setToDate] = useState(() => new Date().toISOString().split('T')[0])
 
     useEffect(() => {
         if (outletId) {
@@ -86,12 +90,13 @@ export const InventoryManagement = () => {
             setStockData(finalStockData)
 
 
-            // 2. Fetch History (Last 30 days)
-            const endDate = new Date()
-            const startDate = new Date()
-            startDate.setDate(startDate.getDate() - 30)
+            // 2. Fetch History
+            const start = new Date(fromDate)
+            const end = new Date(toDate)
+            // Adjust end date to include the full day
+            end.setHours(23, 59, 59, 999)
 
-            const historyRes = await inventoryService.getStockHistory(outletId, startDate, endDate)
+            const historyRes = await inventoryService.getStockHistory(outletId, start, end)
             console.log("📊 Stock History Response:", historyRes)
 
             // Similar robust check for history data
@@ -350,10 +355,10 @@ export const InventoryManagement = () => {
                         <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 h-11 px-4">
                             <span className="text-sm text-muted-foreground font-medium">From:</span>
                             <Input
-                                type="text"
+                                type="date"
                                 value={fromDate}
                                 onChange={(e) => setFromDate(e.target.value)}
-                                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent w-28 h-full"
+                                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent w-[140px] h-full"
                             />
                         </div>
 
@@ -361,14 +366,14 @@ export const InventoryManagement = () => {
                         <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 h-11 px-4">
                             <span className="text-sm text-muted-foreground font-medium">To:</span>
                             <Input
-                                type="text"
+                                type="date"
                                 value={toDate}
                                 onChange={(e) => setToDate(e.target.value)}
-                                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent w-28 h-full"
+                                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent w-[140px] h-full"
                             />
                         </div>
 
-                        <Button className="rounded-xl h-11 px-6 shadow-sm">Apply</Button>
+                        <Button onClick={fetchData} className="rounded-xl h-11 px-6 shadow-sm">Apply</Button>
                         <Button variant="ghost" className="rounded-xl h-11 px-6">Clear</Button>
                     </div>
 

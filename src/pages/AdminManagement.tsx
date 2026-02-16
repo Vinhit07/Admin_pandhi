@@ -7,6 +7,14 @@ import toast from 'react-hot-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { Switch } from "../components/ui/switch"
 import { Label } from "../components/ui/label"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "../components/ui/dialog"
 
 // Permission types matching backend enum
 const PERMISSION_TYPES = [
@@ -36,6 +44,7 @@ export const AdminManagement = () => {
     // We assume single outlet per admin for now as per requirement
     const [adminOutletId, setAdminOutletId] = useState<number | null>(null)
     const [saving, setSaving] = useState(false)
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
     useEffect(() => {
         if (pageState === 'list') {
@@ -154,7 +163,7 @@ export const AdminManagement = () => {
     }
 
     const handleRemoveAdmin = async () => {
-        if (!selectedAdminId || !confirm("Are you sure you want to remove this admin?")) return
+        if (!selectedAdminId) return
 
         try {
             setLoading(true)
@@ -299,7 +308,7 @@ export const AdminManagement = () => {
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Outlet</Label>
+                                    <Label>Vendor</Label>
                                     <div className="p-3 bg-muted/30 rounded-lg border border-border flex items-center gap-2">
                                         <Store size={16} className="text-muted-foreground" />
                                         {adminDetails.outlets?.[0]?.outlet?.name || 'Not assigned'}
@@ -310,7 +319,7 @@ export const AdminManagement = () => {
                             <div className="mt-8 flex justify-end gap-2">
                                 {/* Update Details not yet supported by backend */}
                                 {/* <Button>Update Details</Button> */}
-                                <Button variant="destructive" onClick={handleRemoveAdmin}>Remove Admin</Button>
+                                <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)}>Remove Admin</Button>
                             </div>
                         </div>
                     </TabsContent>
@@ -318,10 +327,10 @@ export const AdminManagement = () => {
                     <TabsContent value="permissions">
                         <div className="bg-card border border-border rounded-xl p-8 max-w-3xl">
                             <div className="mb-6">
-                                <h3 className="text-lg font-semibold">Outlet-wise Permissions</h3>
+                                <h3 className="text-lg font-semibold">Vendor-wise Permissions</h3>
                                 {adminDetails.outlets?.[0]?.outlet?.name && (
                                     <p className="text-sm text-muted-foreground mt-1">
-                                        Managing permissions for outlet: <span className="font-medium text-foreground">{adminDetails.outlets[0].outlet.name}</span>
+                                        Managing permissions for vendor: <span className="font-medium text-foreground">{adminDetails.outlets[0].outlet.name}</span>
                                     </p>
                                 )}
                             </div>
@@ -363,6 +372,23 @@ export const AdminManagement = () => {
                     Admin details not found.
                 </div>
             )}
-        </div>
+
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete Admin</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to remove this admin? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
+                        <Button variant="destructive" onClick={handleRemoveAdmin}>Delete</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div >
     )
 }

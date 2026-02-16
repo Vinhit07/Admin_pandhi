@@ -86,8 +86,19 @@ export const OutletProvider = ({ children }: { children: ReactNode }) => {
                 }
 
                 // If no valid target, default to first available outlet
+                // CHANGE: For Dashboard Consolidation, we want to default to ALL (null) if possible, 
+                // but maybe only for SUPERADMIN? The user said "display cumulative...".
+                // Let's default to ALL (null) if no targetId is set.
+
+                // If user is ADMIN (restricted), they might only have 1 outlet. 
+                // But if SUPERADMIN, we default to null (ALL).
                 if (!targetId && fetchedOutlets.length > 0) {
-                    targetId = fetchedOutlets[0].id;
+                    if (user.role === 'ADMIN') {
+                        targetId = fetchedOutlets[0].id;
+                    } else {
+                        // Keep as null for "All Vendors" view
+                        targetId = null;
+                    }
                 }
 
                 if (targetId) {
