@@ -9,8 +9,6 @@ import { Button } from "../ui/button"
 interface CustomerDetails {
     id: number
     walletId: number
-    yearOfStudy: number
-    phone: string
     email: string
     walletBalance: number
     totalOrders: number
@@ -54,14 +52,6 @@ export const CustomerDetailsDialog = ({ open, onClose, customer }: CustomerDetai
                             <tr className="border-b">
                                 <td className="py-2 font-medium">Wallet ID</td>
                                 <td className="py-2 text-orange-600">{customer.walletId}</td>
-                            </tr>
-                            <tr className="border-b">
-                                <td className="py-2 font-medium">Year</td>
-                                <td className="py-2 text-orange-600">{customer.yearOfStudy}</td>
-                            </tr>
-                            <tr className="border-b">
-                                <td className="py-2 font-medium">Phone Number</td>
-                                <td className="py-2 text-orange-600">{customer.phone}</td>
                             </tr>
                             <tr className="border-b">
                                 <td className="py-2 font-medium">Email</td>

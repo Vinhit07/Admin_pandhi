@@ -56,6 +56,9 @@ export const ExpenditureManagement = () => {
     const [amount, setAmount] = useState("")
     const [paymentMethod, setPaymentMethod] = useState("")
     const [paidTo, setPaidTo] = useState("")
+    const [selectedOutletId, setSelectedOutletId] = useState<number | string>("")
+
+    const { outlets } = useOutlet() // Get outlets list for dropdown
 
     useEffect(() => {
         // Fetch initially or when outletId changes (including when it's null/'ALL')
@@ -119,11 +122,22 @@ export const ExpenditureManagement = () => {
         setAmount("")
         setPaymentMethod("")
         setPaidTo("")
+        setSelectedOutletId("")
     }
 
     const handleAddExpense = async () => {
-        if (!category || !description || !amount || !expenseDate || !outletId || !paidTo) {
+        // Validate required fields
+        if (!category || !description || !amount || !expenseDate || !paidTo) {
             toast.error("Please fill in all required fields")
+            return
+        }
+
+        // Determine which outlet ID to use
+        const targetOutletId = (outletId && outletId !== "ALL") ? outletId : selectedOutletId
+
+        // Check outlet selection - must be a specific outlet
+        if (!targetOutletId || targetOutletId === "ALL") {
+            toast.error("Please select a specific outlet to add an expense")
             return
         }
 
@@ -133,7 +147,7 @@ export const ExpenditureManagement = () => {
                 description,
                 amount: parseFloat(amount),
                 expenseDate: expenseDate,
-                outletId,
+                outletId: typeof targetOutletId === 'string' ? parseInt(targetOutletId) : targetOutletId,
                 method: paymentMethod,
                 paidTo: paidTo
             })
@@ -329,6 +343,25 @@ export const ExpenditureManagement = () => {
 
                         {/* Form Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Outlet Selection - Only show if in "All Outlets" view */}
+                            {(!outletId || outletId === "ALL") && (
+                                <div className="space-y-2 md:col-span-2">
+                                    <label className="text-sm font-medium">Outlet <span className="text-destructive">*</span></label>
+                                    <Select value={selectedOutletId.toString()} onValueChange={(value) => setSelectedOutletId(value)}>
+                                        <SelectTrigger className="rounded-xl">
+                                            <SelectValue placeholder="Select Outlet" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {outlets.map((outlet) => (
+                                                <SelectItem key={outlet.id} value={outlet.id.toString()}>
+                                                    {outlet.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Date *</label>
                                 <Input

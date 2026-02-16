@@ -76,8 +76,6 @@ export const CustomerManagement = () => {
             id: customer.customerId,
             walletId: customer.walletId,
             name: customer.name,
-            yearOfStudy: customer.yearOfStudy, // Updated key
-            phone: customer.phoneNo,           // Updated key
             email: customer.email || "N/A",
             walletBalance: customer.walletBalance,
             totalOrders: customer.totalOrders, // Updated key
@@ -109,10 +107,6 @@ export const CustomerManagement = () => {
             cell: ({ row }) => (
                 <span className="font-medium text-primary capitalize">{row.getValue("name")}</span>
             ),
-        },
-        {
-            accessorKey: "phoneNo", // Fixed key
-            header: "PHONE NUMBER",
         },
         {
             accessorKey: "walletBalance",

@@ -43,6 +43,9 @@ export const ProductManagement = () => {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+    const [deletingProductId, setDeletingProductId] = useState<number | null>(null)
+    const [isDeleteLoading, setIsDeleteLoading] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [imageFile, setImageFile] = useState<File | null>(null)
 
@@ -57,7 +60,15 @@ export const ProductManagement = () => {
         minValue: "0",
         isVeg: true,
         companyPaid: false,
+        outletId: "" // Local outlet selection
     })
+
+    // Update local outletId when global outletId changes, but only if it's a specific outlet
+    useEffect(() => {
+        if (outletId && outletId !== "ALL") {
+            setFormData(prev => ({ ...prev, outletId: outletId.toString() }))
+        }
+    }, [outletId])
 
     useEffect(() => {
         // Fetch initially or when outletId changes (including when it's null/'ALL')
@@ -99,13 +110,18 @@ export const ProductManagement = () => {
             minValue: "0",
             isVeg: true,
             companyPaid: false,
+            outletId: (outletId && outletId !== "ALL") ? outletId.toString() : ""
         })
         setImageFile(null)
     }
 
     const handleAddProduct = async () => {
-        if (!formData.name || !formData.price || !formData.category || !outletId) {
-            toast.error("Please fill in all required fields")
+        // Validation: Check name, price, category. Image is OPTIONAL.
+        // Outlet validation: Must have a valid outletId (either from global or form)
+        const targetOutletId = (outletId && outletId !== "ALL") ? outletId : parseInt(formData.outletId)
+
+        if (!formData.name || !formData.price || !formData.category || !targetOutletId) {
+            toast.error("Please fill in all required fields (Name, Price, Category, Outlet)")
             return
         }
 
@@ -115,7 +131,7 @@ export const ProductManagement = () => {
                 description: formData.description,
                 price: parseFloat(formData.price),
                 category: formData.category,
-                outletId: outletId === "ALL" ? 0 : outletId,
+                outletId: targetOutletId,
                 threshold: parseInt(formData.threshold) || 10,
                 minValue: parseInt(formData.minValue) || 0,
                 isVeg: formData.isVeg,
@@ -146,70 +162,75 @@ export const ProductManagement = () => {
     }
 
     const handleEditProduct = async () => {
-        if (!editingProduct || !formData.name || !formData.price || !formData.category || !outletId) {
+        if (!editingProduct) return
+
+        // Validate required fields
+        if (!formData.name || !formData.price || !formData.category) {
+            toast.error("Please fill in all required fields (Name, Price, Category)")
             return
         }
 
         try {
-            const response = await productService.updateProduct(editingProduct.id, {
-                name: formData.name,
-                description: formData.description,
-                price: parseFloat(formData.price),
-                category: formData.category,
-                imageUrl: formData.imageUrl || "",
-                // Include missing required fields
-                outletId: outletId === "ALL" ? 0 : outletId,
-                // Include other editable fields
-                threshold: parseInt(formData.threshold) || 10,
-                minValue: parseInt(formData.minValue) || 0,
-                isVeg: formData.isVeg,
-                companyPaid: formData.companyPaid,
-            }, imageFile || undefined)
+            const response = await productService.updateProduct(
+                editingProduct.id,
+                {
+                    name: formData.name,
+                    description: formData.description,
+                    price: parseFloat(formData.price),
+                    category: formData.category,
+                    outletId: parseInt(formData.outletId),
+                    threshold: parseInt(formData.threshold) || 10,
+                    minValue: parseInt(formData.minValue) || 0,
+                    isVeg: formData.isVeg,
+                    companyPaid: formData.companyPaid,
+                },
+                imageFile || undefined
+            )
 
             if (response.success && response.data) {
-                const updatedProducts = products.map((p) =>
-                    p.id === editingProduct.id ? response.data! : p
-                )
-                setProducts(updatedProducts)
+                // Update the product in the list
+                setProducts(products.map(p => p.id === editingProduct.id ? response.data! : p))
                 setIsEditDialogOpen(false)
                 setEditingProduct(null)
                 resetForm()
                 toast.success("Product updated successfully")
+            } else {
+                const msg = response.message || "Failed to update product"
+                toast.error(msg)
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error updating product:", error)
-            toast.error("Failed to update product")
+            const errorMsg = error.response?.data?.error || error.message || "Failed to update product"
+            toast.error(errorMsg)
         }
     }
 
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-    const [productToDelete, setProductToDelete] = useState<Product | null>(null)
-    const [isDeleteLoading, setIsDeleteLoading] = useState(false)
-
-    const handleRemoveProduct = (productId: string | number) => {
-        const product = products.find(p => p.id === productId)
-        if (product) {
-            setProductToDelete(product)
-            setIsDeleteDialogOpen(true)
-        }
+    const handleRemoveProduct = (productId: number) => {
+        setDeletingProductId(productId)
+        setIsDeleteDialogOpen(true)
     }
 
     const handleConfirmDeleteProduct = async () => {
-        if (!productToDelete) return
+        if (!deletingProductId) return
 
         try {
             setIsDeleteLoading(true)
-            const id = typeof productToDelete.id === 'string' ? parseInt(productToDelete.id) : productToDelete.id
-            const response = await productService.deleteProduct(id)
+            const response = await productService.deleteProduct(deletingProductId)
+
             if (response.success) {
-                setProducts(products.filter((p) => p.id !== productToDelete.id))
-                toast.success("Product deleted successfully")
+                // Remove the product from the list
+                setProducts(products.filter(p => p.id !== deletingProductId))
                 setIsDeleteDialogOpen(false)
-                setProductToDelete(null)
+                setDeletingProductId(null)
+                toast.success("Product deleted successfully")
+            } else {
+                const msg = response.message || "Failed to delete product"
+                toast.error(msg)
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error deleting product:", error)
-            toast.error("Failed to delete product")
+            const errorMsg = error.response?.data?.error || error.message || "Failed to delete product"
+            toast.error(errorMsg)
         } finally {
             setIsDeleteLoading(false)
         }
@@ -223,12 +244,14 @@ export const ProductManagement = () => {
             price: product.price.toString(),
             category: product.category || "",
             imageUrl: product.imageUrl || null,
-            threshold: "10", // Could get from product.inventory if available
-            minValue: "0",
-            isVeg: true,
-            companyPaid: false,
+            threshold: (product.inventory?.threshold || product.alertThreshold || "10").toString(),
+            minValue: (product.inventory?.minValue || product.minValue || "0").toString(),
+            isVeg: product.isVeg !== undefined ? product.isVeg : true,
+            companyPaid: product.companyPaid || false,
+            outletId: product.outletId.toString()
         })
         setIsEditDialogOpen(true)
+        setImageFile(null)
     }
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -243,11 +266,13 @@ export const ProductManagement = () => {
         }
     }
 
+    const { outlets } = useOutlet(); // Get outlets list for dropdown
+
     const formJSX = (
         <div className="flex gap-6">
             {/* Left Side: Live Product Preview */}
             <div className="w-56 flex-shrink-0">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Live Preview</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Live Preview (Optional)</p>
                 <div className="bg-card border-2 border-border rounded-xl overflow-hidden shadow-sm">
                     {/* Preview Image */}
                     <div
@@ -288,7 +313,7 @@ export const ProductManagement = () => {
                     />
                 </div>
 
-                {/* Description */}
+                {/* Description - Optional in backend/frontend UI but good to have */}
                 <div>
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Description
@@ -300,6 +325,30 @@ export const ProductManagement = () => {
                         className="mt-1.5 min-h-[80px] resize-none"
                     />
                 </div>
+
+                {/* Outlet Selection - Only show if in "All Outlets" view */}
+                {(!outletId || outletId === "ALL") && (
+                    <div>
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            Outlet <span className="text-destructive">*</span>
+                        </label>
+                        <Select
+                            value={formData.outletId}
+                            onValueChange={(value) => setFormData({ ...formData, outletId: value })}
+                        >
+                            <SelectTrigger className="mt-1.5">
+                                <SelectValue placeholder="Select Outlet" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {outlets.map((outlet) => (
+                                    <SelectItem key={outlet.id} value={outlet.id.toString()}>
+                                        {outlet.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
 
                 {/* Price & Category Row */}
                 <div className="grid grid-cols-2 gap-4">
