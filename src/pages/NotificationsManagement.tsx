@@ -48,11 +48,12 @@ export const NotificationsManagement = () => {
     const [notifScheduleTime, setNotifScheduleTime] = useState("")
 
     // Promotion form states (similar structure)
-    const [promoTitle, setPromoTitle] = useState("")
-    const [promoPriority, setPromoPriority] = useState("")
-    const [promoDescription, setPromoDescription] = useState("")
-    const [promoScheduleDate, setPromoScheduleDate] = useState("")
-    const [promoScheduleTime, setPromoScheduleTime] = useState("")
+    // Promotion form states (similar structure)
+    // const [promoTitle, setPromoTitle] = useState("")
+    // const [promoPriority, setPromoPriority] = useState("")
+    // const [promoDescription, setPromoDescription] = useState("")
+    // const [promoScheduleDate, setPromoScheduleDate] = useState("")
+    // const [promoScheduleTime, setPromoScheduleTime] = useState("")
 
     // Coupon form states
     const [couponCode, setCouponCode] = useState("")
@@ -382,9 +383,9 @@ export const NotificationsManagement = () => {
 
             {/* Removed the heavy outer container and kept the Tabs structure flat */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full max-w-lg grid-cols-3 mb-6 h-12">
+                <TabsList className="grid w-full max-w-lg grid-cols-2 mb-6 h-12">
                     <TabsTrigger value="notifications" className="rounded-lg">Notifications</TabsTrigger>
-                    <TabsTrigger value="promotion" className="rounded-lg">Promotion</TabsTrigger>
+                    {/* <TabsTrigger value="promotion" className="rounded-lg">Promotion</TabsTrigger> */}
                     <TabsTrigger value="coupons" className="rounded-lg">Coupons</TabsTrigger>
                 </TabsList>
 
@@ -472,12 +473,12 @@ export const NotificationsManagement = () => {
                 </TabsContent>
 
                 {/* Promotion Tab - Similar to notification but simplified */}
-                <TabsContent value="promotion" className="space-y-6">
+                {/* <TabsContent value="promotion" className="space-y-6">
                     <div className="bg-card border border-border/50 rounded-xl p-6 shadow-sm">
                         <h3 className="text-lg font-semibold mb-6">Promotion Details</h3>
                         <p className="text-muted-foreground text-sm mb-4">Use the notifications tab to send promotional messages</p>
                     </div>
-                </TabsContent>
+                </TabsContent> */}
 
                 {/* Coupons Tab */}
                 <TabsContent value="coupons" className="space-y-6">

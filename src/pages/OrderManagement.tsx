@@ -10,7 +10,7 @@ import {
     SelectValue,
 } from "../components/ui/select"
 import { Badge } from "../components/ui/badge"
-import { RefreshCw, Search, Loader2, ShoppingBag, BarChart3 } from "lucide-react"
+import { RefreshCw, Search, Loader2, ShoppingBag, BarChart3, Clock, Calendar } from "lucide-react"
 import { DataTable } from "../components/ui/data-table"
 import { useOutlet } from "../context/OutletContext"
 import { orderService } from "../services"
@@ -62,13 +62,17 @@ export const OrderManagement = () => {
 
     const [searchQuery, setSearchQuery] = useState("")
     const [statusFilter, setStatusFilter] = useState("all")
+    const [dateRange, setDateRange] = useState({
+        from: "",
+        to: ""
+    })
     const [orders, setOrders] = useState<Order[]>([])
     const [loading, setLoading] = useState(false)
     const [selectedOrder, setSelectedOrder] = useState<any>(null)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
 
-    // Tab state: "orders" or "analytics"
-    const [activeTab, setActiveTab] = useState<"orders" | "analytics">("orders")
+    // Tab state: "orders" | "live" | "analytics"
+    const [activeTab, setActiveTab] = useState<"orders" | "live" | "analytics">("orders")
     // Product filter for analytics tab
     const [selectedProduct, setSelectedProduct] = useState<string>("all")
 
@@ -96,7 +100,10 @@ export const OrderManagement = () => {
         setSearchQuery("")
         setStatusFilter("all")
         setSelectedProduct("all")
+        setDateRange({ from: "", to: "" })
     }
+
+
 
     const handleViewOrder = (order: Order) => {
         setSelectedOrder({
@@ -352,7 +359,45 @@ export const OrderManagement = () => {
             (order.customerName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
             (order.customerPhone || '').toLowerCase().includes(searchQuery.toLowerCase())
         const matchesStatus = statusFilter === "all" || order.status === statusFilter
-        return matchesSearch && matchesStatus
+
+        // Date Range Filtering
+        let matchesDate = true
+        if (dateRange.from) {
+            const orderDate = new Date(order.orderTime).setHours(0, 0, 0, 0)
+            const fromDate = new Date(dateRange.from).setHours(0, 0, 0, 0)
+            matchesDate = matchesDate && orderDate >= fromDate
+        }
+        if (dateRange.to) {
+            const orderDate = new Date(order.orderTime).setHours(0, 0, 0, 0)
+            const toDate = new Date(dateRange.to).setHours(0, 0, 0, 0)
+            matchesDate = matchesDate && orderDate <= toDate
+        }
+
+        // Exclude Tomorrow's orders from "All Orders" tab (as they are in Live Orders)
+        // Tomorrow calculation
+        const today = new Date()
+        const tomorrow = new Date(today)
+        tomorrow.setDate(today.getDate() + 1)
+        const tomorrowStr = tomorrow.toISOString().split('T')[0]
+
+        const orderDeliveryDate = new Date(order.deliveryDate).toISOString().split('T')[0]
+        const isTomorrow = orderDeliveryDate === tomorrowStr
+
+        return matchesSearch && matchesStatus && matchesDate && !isTomorrow
+    })
+
+    // Helper for Live Orders: ONLY show orders for Tomorrow
+    const liveOrders = orders.filter(order => {
+        // Calculate Tomorrow's date string (YYYY-MM-DD)
+        const today = new Date()
+        const tomorrow = new Date(today)
+        tomorrow.setDate(today.getDate() + 1)
+        const tomorrowStr = tomorrow.toISOString().split('T')[0]
+
+        // Check if order delivery date matches tomorrow
+        const orderDeliveryDate = new Date(order.deliveryDate).toISOString().split('T')[0]
+
+        return orderDeliveryDate === tomorrowStr
     })
 
     if (loading) {
@@ -380,7 +425,17 @@ export const OrderManagement = () => {
                         }`}
                 >
                     <ShoppingBag size={16} />
-                    Orders
+                    All Orders
+                </button>
+                <button
+                    onClick={() => setActiveTab("live")}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${activeTab === "live"
+                        ? "bg-primary text-primary-foreground shadow-md"
+                        : "bg-card text-muted-foreground border border-border/50 hover:bg-accent hover:text-accent-foreground"
+                        }`}
+                >
+                    <Clock size={16} />
+                    Live Orders
                 </button>
                 <button
                     onClick={() => setActiveTab("analytics")}
@@ -424,6 +479,51 @@ export const OrderManagement = () => {
                             />
                         </div>
 
+                        <div className="flex items-center gap-2">
+                            <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 h-11 px-3">
+                                <Calendar size={16} className="text-muted-foreground" />
+                                <Input
+                                    type="date"
+                                    value={dateRange.from}
+                                    onChange={(e) => setDateRange(prev => ({ ...prev, from: e.target.value }))}
+                                    className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent w-32 h-full p-0 text-sm"
+                                    placeholder="From"
+                                />
+                                <span className="text-muted-foreground">-</span>
+                                <Input
+                                    type="date"
+                                    value={dateRange.to}
+                                    onChange={(e) => setDateRange(prev => ({ ...prev, to: e.target.value }))}
+                                    className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent w-32 h-full p-0 text-sm"
+                                    placeholder="To"
+                                />
+                            </div>
+
+                            <Button
+                                onClick={handleRefresh}
+                                className="rounded-xl h-11 px-4 shadow-sm border border-border/10"
+                                variant="outline"
+                                title="Refresh"
+                            >
+                                <RefreshCw size={18} />
+                            </Button>
+
+
+                        </div>
+                    </div>
+
+                    <DataTable columns={columns} data={filteredOrders} />
+                </>
+            )}
+
+            {/* =================== LIVE ORDERS TAB =================== */}
+            {activeTab === "live" && (
+                <>
+                    <div className="flex items-center justify-between gap-4 mb-4">
+                        <div className="flex flex-col gap-1">
+                            <h2 className="text-xl font-semibold">Live Orders (Tomorrow)</h2>
+                            <p className="text-sm text-muted-foreground">Orders scheduled for delivery tomorrow</p>
+                        </div>
                         <Button
                             onClick={handleRefresh}
                             className="rounded-xl h-11 px-6 shadow-sm border border-border/10"
@@ -433,7 +533,17 @@ export const OrderManagement = () => {
                         </Button>
                     </div>
 
-                    <DataTable columns={columns} data={filteredOrders} />
+                    {liveOrders.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center p-12 bg-card rounded-xl border border-border/50 text-center">
+                            <div className="bg-muted/50 p-4 rounded-full mb-4">
+                                <Clock size={32} className="text-muted-foreground" />
+                            </div>
+                            <h3 className="text-lg font-medium">No Live Orders</h3>
+                            <p className="text-muted-foreground mt-1">There are no pending or active orders at the moment.</p>
+                        </div>
+                    ) : (
+                        <DataTable columns={columns} data={liveOrders} />
+                    )}
                 </>
             )}
 

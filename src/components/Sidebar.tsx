@@ -6,11 +6,11 @@ import {
     Package,
     DollarSign,
     Wallet,
-    UserCog,
+    // UserCog,
     Ticket,
     Bell,
     UtensilsCrossed,
-    Settings,
+    // Settings,
     BarChart3,
     LogOut,
     ChevronLeft,
@@ -29,16 +29,16 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
     { path: '/', label: 'Home', icon: <Home size={20} /> },
-    { path: '/reports-analytics', label: 'Reports & Analytics', icon: <BarChart3 size={20} /> },
     { path: '/order-management', label: 'Order Management', icon: <ShoppingCart size={20} /> },
-    { path: '/inventory-management', label: 'Inventory Management', icon: <Package size={20} /> },
     { path: '/product-management', label: 'Product Management', icon: <UtensilsCrossed size={20} /> },
-    { path: '/customer-management', label: 'Customer Management', icon: <UserCog size={20} /> },
+    { path: '/inventory-management', label: 'Inventory Management', icon: <Package size={20} /> },
     { path: '/staff-management', label: 'Staff Management', icon: <Users size={20} /> },
     { path: '/expenditure-management', label: 'Expenditure Management', icon: <DollarSign size={20} /> },
+    { path: '/reports-analytics', label: 'Reports & Analytics', icon: <BarChart3 size={20} /> },
     { path: '/wallet-management', label: 'Wallet Management', icon: <Wallet size={20} /> },
     { path: '/ticket-management', label: 'Ticket Management', icon: <Ticket size={20} /> },
     { path: '/notifications-management', label: 'Notifications', icon: <Bell size={20} /> },
+    // { path: '/customer-management', label: 'Customer Management', icon: <UserCog size={20} /> },
     //{ path: '/app-management', label: 'App Settings', icon: <Settings size={20} /> },
 ]
 
@@ -90,6 +90,13 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed }: SidebarProps) => {
                                 {!isCollapsed && <span className="text-sm truncate">{item.label}</span>}
                             </Link>
                         )
+
+                        const isSuperAdmin = user?.role === 'SUPERADMIN';
+
+                        // Logic to hide specific items based on role
+                        if ((item.label === 'Ticket Management' || item.label === 'Wallet Management') && !isSuperAdmin) {
+                            return null;
+                        }
 
                         if (isCollapsed) {
                             return (

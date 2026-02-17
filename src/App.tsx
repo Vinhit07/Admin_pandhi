@@ -9,7 +9,7 @@ import { StaffDetail } from './pages/StaffDetail'
 import { InventoryManagement } from './pages/InventoryManagement'
 import { ExpenditureManagement } from './pages/ExpenditureManagement'
 import { WalletManagement } from './pages/WalletManagement'
-import { CustomerManagement } from './pages/CustomerManagement'
+// import { CustomerManagement } from './pages/CustomerManagement'
 import { TicketManagement } from './pages/TicketManagement'
 import { NotificationsManagement } from './pages/NotificationsManagement'
 import { ProductManagement } from './pages/ProductManagement'
@@ -45,7 +45,7 @@ function App() {
               <Route path="inventory-management" element={<InventoryManagement />} />
               <Route path="expenditure-management" element={<ExpenditureManagement />} />
               <Route path="wallet-management" element={<WalletManagement />} />
-              <Route path="customer-management" element={<CustomerManagement />} />
+              {/* <Route path="customer-management" element={<CustomerManagement />} /> */}
               <Route path="ticket-management" element={<TicketManagement />} />
               <Route path="notifications-management" element={<NotificationsManagement />} />
               <Route path="product-management" element={<ProductManagement />} />

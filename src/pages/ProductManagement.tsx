@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
 import { Textarea } from "../components/ui/textarea"
@@ -17,7 +17,8 @@ import {
     DialogFooter,
     DialogDescription,
 } from "../components/ui/dialog"
-import { Upload, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
+// import { Upload } from "lucide-react"
 import { ProductCard } from "../components/ProductCard"
 import { useOutlet } from "../context/OutletContext"
 import { productService } from "../services/productService"
@@ -46,7 +47,7 @@ export const ProductManagement = () => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
     const [deletingProductId, setDeletingProductId] = useState<number | null>(null)
     const [isDeleteLoading, setIsDeleteLoading] = useState(false)
-    const fileInputRef = useRef<HTMLInputElement>(null)
+    // const fileInputRef = useRef<HTMLInputElement>(null)
     const [imageFile, setImageFile] = useState<File | null>(null)
 
     // Form state
@@ -80,7 +81,9 @@ export const ProductManagement = () => {
             setLoading(true)
             // If outletId is null/All, pass 0 (as per existing logic `outletId === "ALL" ? 0 : outletId`)
             // The existing logic already handled string "ALL", we just need to handle null.
-            const targetId = (outletId === "ALL" || outletId === null) ? 0 : outletId
+            // If outletId is null/All/undefined, pass 0
+            const targetId = (outletId === "ALL" || !outletId) ? 0 : outletId
+            console.log("Fetching products for targetId:", targetId)
             const response = await productService.getProducts(targetId)
             console.log("🍴 Products Response:", response)
             if (response.success && response.data) {
@@ -254,6 +257,7 @@ export const ProductManagement = () => {
         setImageFile(null)
     }
 
+    /*
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (file) {
@@ -265,16 +269,16 @@ export const ProductManagement = () => {
             reader.readAsDataURL(file)
         }
     }
+    */
 
     const { outlets } = useOutlet(); // Get outlets list for dropdown
 
     const formJSX = (
         <div className="flex gap-6">
-            {/* Left Side: Live Product Preview */}
-            <div className="w-56 flex-shrink-0">
+            {/* Left Side: Live Product Preview (COMMENTED OUT) */}
+            {/* <div className="w-56 flex-shrink-0">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Live Preview (Optional)</p>
                 <div className="bg-card border-2 border-border rounded-xl overflow-hidden shadow-sm">
-                    {/* Preview Image */}
                     <div
                         className="h-32 bg-muted flex items-center justify-center cursor-pointer relative overflow-hidden group"
                         onClick={() => fileInputRef.current?.click()}
@@ -296,7 +300,7 @@ export const ProductManagement = () => {
                         )}
                     </div>
                 </div>
-            </div>
+            </div> */}
 
             {/* Right Side: Form Fields */}
             <div className="flex-1 space-y-4">

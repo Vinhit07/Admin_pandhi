@@ -47,10 +47,12 @@ export const TopNav = () => {
             <div className="flex items-center gap-4">
                 {/* User Profile Info */}
                 <div className="relative flex items-center gap-1.5">
-                    {/* Initials */}
-                    <span className="text-primary-foreground font-bold text-xs">
-                        {user?.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'AD'}
-                    </span>
+                    {/* Logo instead of Initials */}
+                    <img
+                        src="/logoups.png"
+                        alt="UPS Logo"
+                        className="h-10 w-auto object-contain" // Adjusted size
+                    />
 
                     {/* Status Dot */}
                     <div className="w-2.5 h-2.5 rounded-full bg-green-500 border border-background animate-pulse"></div>

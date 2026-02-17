@@ -4,8 +4,8 @@ import { Button } from '../components/ui/button'
 import { adminService } from '../services/adminService'
 import type { User } from '../types/api'
 import toast from 'react-hot-toast'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
-import { Switch } from "../components/ui/switch"
+// import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
+// import { Switch } from "../components/ui/switch"
 import { Label } from "../components/ui/label"
 import {
     Dialog,
@@ -17,6 +17,8 @@ import {
 } from "../components/ui/dialog"
 
 // Permission types matching backend enum
+// Permission types matching backend enum
+/*
 const PERMISSION_TYPES = [
     'ORDER_MANAGEMENT',
     'STAFF_MANAGEMENT',
@@ -33,6 +35,7 @@ const PERMISSION_TYPES = [
     'ONBOARDING',
     'ADMIN_MANAGEMENT',
 ]
+*/
 
 export const AdminManagement = () => {
     const [pageState, setPageState] = useState<'list' | 'detail'>('list')
@@ -40,10 +43,10 @@ export const AdminManagement = () => {
     const [loading, setLoading] = useState(true)
     const [selectedAdminId, setSelectedAdminId] = useState<number | null>(null)
     const [adminDetails, setAdminDetails] = useState<any>(null)
-    const [permissions, setPermissions] = useState<any[]>([])
+    // const [permissions, setPermissions] = useState<any[]>([])
     // We assume single outlet per admin for now as per requirement
-    const [adminOutletId, setAdminOutletId] = useState<number | null>(null)
-    const [saving, setSaving] = useState(false)
+    // const [adminOutletId, setAdminOutletId] = useState<number | null>(null)
+    // const [saving, setSaving] = useState(false)
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
     useEffect(() => {
@@ -97,6 +100,7 @@ export const AdminManagement = () => {
                 setAdminDetails(details)
 
                 // Extract permissions for the first outlet
+                /*
                 if (details.outlets && details.outlets.length > 0) {
                     const firstOutlet = details.outlets[0]
                     setAdminOutletId(firstOutlet.outletId)
@@ -115,6 +119,7 @@ export const AdminManagement = () => {
                     })
                     setPermissions(mappedPerms)
                 }
+                */
             }
         } catch (error) {
             console.error("Error fetching admin details:", error)
@@ -134,6 +139,7 @@ export const AdminManagement = () => {
         setAdminDetails(null)
     }
 
+    /*
     const handlePermissionToggle = (type: string) => {
         setPermissions(prev => prev.map(p =>
             p.type === type ? { ...p, isGranted: !p.isGranted } : p
@@ -161,6 +167,7 @@ export const AdminManagement = () => {
             setSaving(false)
         }
     }
+    */
 
     const handleRemoveAdmin = async () => {
         if (!selectedAdminId) return
@@ -255,76 +262,79 @@ export const AdminManagement = () => {
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
             ) : adminDetails ? (
-                <Tabs defaultValue="details" className="w-full">
+                <div className="flex justify-center w-full">
+                    {/* <Tabs defaultValue="details" className="w-full">
                     <TabsList className="mb-4">
                         <TabsTrigger value="details">Admin Details</TabsTrigger>
                         <TabsTrigger value="permissions">Permissions</TabsTrigger>
-                    </TabsList>
+                    </TabsList> */}
 
-                    <TabsContent value="details">
-                        <div className="bg-card border border-border rounded-xl p-8 max-w-3xl">
-                            <div className="flex flex-col items-center mb-8">
-                                <div className="w-32 h-32 rounded-full bg-muted flex items-center justify-center mb-4 overflow-hidden">
-                                    {adminDetails.imageUrl ? (
-                                        <img src={adminDetails.imageUrl} alt={adminDetails.name} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <UserIcon size={64} className="text-muted-foreground" />
-                                    )}
-                                </div>
-                                <h2 className="text-2xl font-bold">{adminDetails.name}</h2>
-                                <p className="text-muted-foreground">Admin</p>
+                    {/* <TabsContent value="details"> */}
+                    <div className="bg-card border border-border rounded-xl p-8 max-w-3xl w-full shadow-md">
+                        <div className="flex flex-col items-center mb-8">
+                            <div className="w-32 h-32 rounded-full bg-muted flex items-center justify-center mb-4 overflow-hidden">
+                                {adminDetails.imageUrl ? (
+                                    <img src={adminDetails.imageUrl} alt={adminDetails.name} className="w-full h-full object-cover" />
+                                ) : (
+                                    <UserIcon size={64} className="text-muted-foreground" />
+                                )}
                             </div>
+                            <h2 className="text-2xl font-bold">{adminDetails.name}</h2>
+                            <p className="text-muted-foreground">Admin</p>
+                        </div>
 
-                            <div className="grid grid-cols-2 gap-8">
-                                <div className="space-y-2">
-                                    <Label>Name</Label>
-                                    <div className="p-3 bg-muted/30 rounded-lg border border-border">
-                                        {adminDetails.name}
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Role</Label>
-                                    <div className="p-3 bg-muted/30 rounded-lg border border-border">
-                                        Admin
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Email</Label>
-                                    <div className="p-3 bg-muted/30 rounded-lg border border-border">
-                                        {adminDetails.email}
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Phone</Label>
-                                    <div className="p-3 bg-muted/30 rounded-lg border border-border">
-                                        {adminDetails.phone || 'N/A'}
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Joined Date</Label>
-                                    <div className="p-3 bg-muted/30 rounded-lg border border-border flex items-center gap-2">
-                                        <Calendar size={16} className="text-muted-foreground" />
-                                        {new Date(adminDetails.createdAt).toLocaleDateString()}
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Vendor</Label>
-                                    <div className="p-3 bg-muted/30 rounded-lg border border-border flex items-center gap-2">
-                                        <Store size={16} className="text-muted-foreground" />
-                                        {adminDetails.outlets?.[0]?.outlet?.name || 'Not assigned'}
-                                    </div>
+                        <div className="grid grid-cols-2 gap-8">
+                            <div className="space-y-2">
+                                <Label>Name</Label>
+                                <div className="p-3 bg-muted/30 rounded-lg border border-border">
+                                    {adminDetails.name}
                                 </div>
                             </div>
-
-                            <div className="mt-8 flex justify-end gap-2">
-                                {/* Update Details not yet supported by backend */}
-                                {/* <Button>Update Details</Button> */}
-                                <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)}>Remove Admin</Button>
+                            <div className="space-y-2">
+                                <Label>Role</Label>
+                                <div className="p-3 bg-muted/30 rounded-lg border border-border">
+                                    Admin
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Email</Label>
+                                <div className="p-3 bg-muted/30 rounded-lg border border-border">
+                                    {adminDetails.email}
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Phone</Label>
+                                <div className="p-3 bg-muted/30 rounded-lg border border-border">
+                                    {adminDetails.phone || 'N/A'}
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Joined Date</Label>
+                                <div className="p-3 bg-muted/30 rounded-lg border border-border flex items-center gap-2">
+                                    <Calendar size={16} className="text-muted-foreground" />
+                                    {new Date(adminDetails.createdAt).toLocaleDateString()}
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Vendor</Label>
+                                <div className="p-3 bg-muted/30 rounded-lg border border-border flex items-center gap-2">
+                                    <Store size={16} className="text-muted-foreground" />
+                                    {adminDetails.outlets?.[0]?.outlet?.name || 'Not assigned'}
+                                </div>
                             </div>
                         </div>
-                    </TabsContent>
 
-                    <TabsContent value="permissions">
+                        <div className="mt-8 flex justify-end gap-2">
+                            {/* Update Details not yet supported by backend */}
+                            {/* <Button>Update Details</Button> */}
+                            <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)}>Remove Admin</Button>
+                        </div>
+                    </div>
+
+
+                    {/* </TabsContent> */}
+
+                    {/* <TabsContent value="permissions">
                         <div className="bg-card border border-border rounded-xl p-8 max-w-3xl">
                             <div className="mb-6">
                                 <h3 className="text-lg font-semibold">Vendor-wise Permissions</h3>
@@ -365,8 +375,9 @@ export const AdminManagement = () => {
                                 </Button>
                             </div>
                         </div>
-                    </TabsContent>
-                </Tabs>
+                    </TabsContent> */}
+
+                </div>
             ) : (
                 <div className="h-64 flex items-center justify-center text-muted-foreground">
                     Admin details not found.

@@ -296,7 +296,9 @@ export const TicketManagement = () => {
                         raisedBy: selectedTicket.customerName || "N/A",
                         email: selectedTicket.customerEmail || "N/A",
                         priority: selectedTicket.priority || "MEDIUM",
-                        status: selectedTicket.status
+                        status: selectedTicket.status,
+                        resolutionNote: selectedTicket.resolutionNote,
+                        resolvedAt: selectedTicket.resolvedAt
                     }}
                 />
             )}

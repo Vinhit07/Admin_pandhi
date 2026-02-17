@@ -38,7 +38,7 @@ export const Home = () => {
     const [orderStatusDist, setOrderStatusDist] = useState<any>(null)
     const [orderSourceDist, setOrderSourceDist] = useState<any>(null)
     const [topSellingItems, setTopSellingItems] = useState<any[]>([])
-    const [peakTimeSlots, setPeakTimeSlots] = useState<any[]>([])
+    // const [peakTimeSlots, setPeakTimeSlots] = useState<any[]>([])
 
     useEffect(() => {
         // Wait for outletId to be initialized (it might be null briefly)
@@ -61,13 +61,13 @@ export const Home = () => {
 
             console.log('📊 Fetching dashboard data with params:', params)
 
-            const [overview, revenue, orderStatus, orderSource, topItems, peakSlots] = await Promise.all([
+            const [overview, revenue, orderStatus, orderSource, topItems] = await Promise.all([
                 reportService.getDashboardOverview(params),
                 reportService.getRevenueTrend(params),
                 reportService.getOrderStatusDistribution(params),
                 reportService.getOrderSourceDistribution(params),
                 reportService.getTopSellingItems(params),
-                reportService.getPeakTimeSlots(params)
+                // reportService.getPeakTimeSlots(params)
             ])
 
             const overviewData = (overview as any)?.data ? (overview as any).data : overview
@@ -80,7 +80,7 @@ export const Home = () => {
             setOrderStatusDist(orderStatus)
             setOrderSourceDist(orderSource)
             setTopSellingItems(Array.isArray(topItems) ? topItems : [])
-            setPeakTimeSlots(Array.isArray(peakSlots) ? peakSlots : [])
+            // setPeakTimeSlots(Array.isArray(peakSlots) ? peakSlots : [])
 
         } catch (error) {
             console.error('❌ Error fetching dashboard data:', error)
@@ -377,7 +377,8 @@ export const Home = () => {
                     </CardContent>
                 </Card>
 
-                {/* Peak Time Slots */}
+                {/* Peak Time Slots (Commented out) */}
+                {/* 
                 <Card>
                     <CardHeader>
                         <CardTitle>Peak Time Slots</CardTitle>
@@ -408,6 +409,7 @@ export const Home = () => {
                         )}
                     </CardContent>
                 </Card>
+                */}
             </div>
         </div>
     )

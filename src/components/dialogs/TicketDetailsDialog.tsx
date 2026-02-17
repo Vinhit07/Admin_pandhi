@@ -15,6 +15,8 @@ interface TicketDetails {
     email: string
     priority: string
     status: string
+    resolutionNote?: string | null
+    resolvedAt?: string | null
 }
 
 interface TicketDetailsDialogProps {
@@ -42,6 +44,7 @@ const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { bg: string; text: string }> = {
         "open": { bg: "bg-green-100", text: "text-green-800" },
         "in_progress": { bg: "bg-blue-100", text: "text-blue-800" },
+        "resolved": { bg: "bg-blue-100", text: "text-blue-800" },
         "closed": { bg: "bg-gray-100", text: "text-gray-800" }
     }
 
@@ -88,6 +91,21 @@ export const TicketDetailsDialog = ({ open, onClose, ticket }: TicketDetailsDial
                         <span className="font-semibold">Status: </span>
                         {getStatusBadge(ticket.status)}
                     </div>
+
+                    {/* Show Resolution Note if available */}
+                    {(ticket.status === 'RESOLVED' || ticket.status === 'CLOSED') && ticket.resolutionNote && (
+                        <div className="pt-2 border-t mt-2">
+                            <div className="font-semibold text-green-700 mb-1">Resolution Details:</div>
+                            <div className="bg-muted p-2 rounded-md text-sm">
+                                {ticket.resolutionNote}
+                            </div>
+                            {ticket.resolvedAt && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                    Resolved on: {new Date(ticket.resolvedAt).toLocaleDateString()}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex justify-end mt-4">

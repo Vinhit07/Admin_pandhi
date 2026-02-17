@@ -11,11 +11,11 @@ import {
 } from "../components/ui/select"
 import { RefreshCw, Search, Loader2 } from "lucide-react"
 import { DataTable } from "../components/ui/data-table"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
+// import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { useOutlet } from "../context/OutletContext"
 import { inventoryService } from "../services"
 import { toast } from "react-hot-toast"
-import { formatDateDDMMYYYY } from "../lib/dateUtils"
+// import { formatDateDDMMYYYY } from "../lib/dateUtils"
 import { StockActionDialog } from "../components/dialogs/StockActionDialog"
 
 interface StockItem {
@@ -27,6 +27,7 @@ interface StockItem {
     quantity: number
 }
 
+/*
 interface StockHistory {
     name: string
     category: string
@@ -37,6 +38,7 @@ interface StockHistory {
         category: string
     }
 }
+*/
 
 export const InventoryManagement = () => {
     const { outletId } = useOutlet()
@@ -45,17 +47,17 @@ export const InventoryManagement = () => {
     const [categoryFilter, setCategoryFilter] = useState("all")
 
     const [stockData, setStockData] = useState<StockItem[]>([])
-    const [historyData, setHistoryData] = useState<StockHistory[]>([])
+    // const [historyData, setHistoryData] = useState<StockHistory[]>([])
 
     const [loading, setLoading] = useState(false)
 
     // Initialize with YYYY-MM-DD format
-    const [fromDate, setFromDate] = useState(() => {
-        const d = new Date()
-        d.setDate(d.getDate() - 30)
-        return d.toISOString().split('T')[0]
-    })
-    const [toDate, setToDate] = useState(() => new Date().toISOString().split('T')[0])
+    // const [fromDate, setFromDate] = useState(() => {
+    //     const d = new Date()
+    //     d.setDate(d.getDate() - 30)
+    //     return d.toISOString().split('T')[0]
+    // })
+    // const [toDate, setToDate] = useState(() => new Date().toISOString().split('T')[0])
 
     useEffect(() => {
         // Fetch initially or when outletId changes (including when it's null/'ALL')
@@ -90,7 +92,8 @@ export const InventoryManagement = () => {
             setStockData(finalStockData)
 
 
-            // 2. Fetch History
+            // 2. Fetch History (Commented out)
+            /* 
             const start = new Date(fromDate)
             const end = new Date(toDate)
             // Adjust end date to include the full day
@@ -108,6 +111,7 @@ export const InventoryManagement = () => {
             }
 
             setHistoryData(finalHistoryData)
+            */
 
         } catch (error) {
             console.error('❌ Error fetching inventory data:', error)
@@ -225,6 +229,7 @@ export const InventoryManagement = () => {
         },
     ]
 
+    /*
     const historyColumns: ColumnDef<StockHistory>[] = [
         {
             id: "itemName",
@@ -256,6 +261,7 @@ export const InventoryManagement = () => {
             ),
         },
     ]
+    */
 
     // --- FILTERING LOGIC ---
 
@@ -287,105 +293,60 @@ export const InventoryManagement = () => {
             </div>
 
             {/* Removed the heavy outer container and kept the Tabs structure flat */}
-            <Tabs defaultValue="availability" className="w-full">
-                <TabsList className="grid w-full max-w-md grid-cols-2 mb-6 h-12">
-                    <TabsTrigger value="availability" className="rounded-lg">Stock Availability</TabsTrigger>
-                    <TabsTrigger value="history" className="rounded-lg">Stock History</TabsTrigger>
-                </TabsList>
+            <div className="w-full space-y-6">
 
-                {/* === STOCK AVAILABILITY TAB === */}
-                <TabsContent value="availability" className="space-y-6">
-
-                    {/* Controls Bar */}
-                    <div className="flex flex-col md:flex-row md:items-center gap-4">
-                        {/* Category Filter */}
-                        <div className="bg-card rounded-xl shadow-sm border border-border/50 min-w-[200px]">
-                            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                                <SelectTrigger className="w-full border-0 focus:ring-0 h-11 px-4">
-                                    <SelectValue placeholder="All Categories" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Categories</SelectItem>
-                                    <SelectItem value="Beverages">Beverages</SelectItem>
-                                    <SelectItem value="SpecialFoods">Special Foods</SelectItem>
-                                    <SelectItem value="Meals">Meals</SelectItem>
-                                    <SelectItem value="Starters">Starters</SelectItem>
-                                    <SelectItem value="Desserts">Desserts</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        {/* Search Bar */}
-                        <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 flex-1 h-11 px-4">
-                            <Search size={18} className="text-muted-foreground shrink-0" />
-                            <Input
-                                placeholder="Search item..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-full"
-                            />
-                        </div>
-
-                        {/* Refresh Button */}
-                        <Button
-                            onClick={handleRefresh}
-                            variant="outline"
-                            className="rounded-xl h-11 px-6 shadow-sm border-border/50"
-                        >
-                            <RefreshCw size={18} className={`mr-2 ${loading ? 'animate-spin' : ''}`} />
-                            Refresh
-                        </Button>
+                {/* === STOCK AVAILABILITY === */}
+                {/* Controls Bar */}
+                <div className="flex flex-col md:flex-row md:items-center gap-4">
+                    {/* Category Filter */}
+                    <div className="bg-card rounded-xl shadow-sm border border-border/50 min-w-[200px]">
+                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                            <SelectTrigger className="w-full border-0 focus:ring-0 h-11 px-4">
+                                <SelectValue placeholder="All Categories" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Categories</SelectItem>
+                                <SelectItem value="Beverages">Beverages</SelectItem>
+                                <SelectItem value="SpecialFoods">Special Foods</SelectItem>
+                                <SelectItem value="Meals">Meals</SelectItem>
+                                <SelectItem value="Starters">Starters</SelectItem>
+                                <SelectItem value="Desserts">Desserts</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
 
-                    {/* Data Table */}
-                    <DataTable columns={stockColumns} data={filteredStockData} />
-
-                    {/* Empty State Message */}
-                    {!loading && filteredStockData.length === 0 && (
-                        <div className="text-center py-10 text-muted-foreground">
-                            No stock items found. Try adjusting filters or refreshing.
-                        </div>
-                    )}
-                </TabsContent>
-
-                {/* === STOCK HISTORY TAB === */}
-                <TabsContent value="history" className="space-y-6">
-                    <div className="flex flex-wrap items-center gap-4">
-                        {/* From Date */}
-                        <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 h-11 px-4">
-                            <span className="text-sm text-muted-foreground font-medium">From:</span>
-                            <Input
-                                type="date"
-                                value={fromDate}
-                                onChange={(e) => setFromDate(e.target.value)}
-                                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent w-[140px] h-full"
-                            />
-                        </div>
-
-                        {/* To Date */}
-                        <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 h-11 px-4">
-                            <span className="text-sm text-muted-foreground font-medium">To:</span>
-                            <Input
-                                type="date"
-                                value={toDate}
-                                onChange={(e) => setToDate(e.target.value)}
-                                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent w-[140px] h-full"
-                            />
-                        </div>
-
-                        <Button onClick={fetchData} className="rounded-xl h-11 px-6 shadow-sm">Apply</Button>
-                        <Button variant="ghost" className="rounded-xl h-11 px-6">Clear</Button>
+                    {/* Search Bar */}
+                    <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 flex-1 h-11 px-4">
+                        <Search size={18} className="text-muted-foreground shrink-0" />
+                        <Input
+                            placeholder="Search item..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-full"
+                        />
                     </div>
 
-                    <DataTable columns={historyColumns} data={historyData} />
-                    {/* Empty State Message */}
-                    {!loading && historyData.length === 0 && (
-                        <div className="text-center py-10 text-muted-foreground">
-                            No history found for this period.
-                        </div>
-                    )}
-                </TabsContent>
-            </Tabs>
+                    {/* Refresh Button */}
+                    <Button
+                        onClick={handleRefresh}
+                        variant="outline"
+                        className="rounded-xl h-11 px-6 shadow-sm border-border/50"
+                    >
+                        <RefreshCw size={18} className={`mr-2 ${loading ? 'animate-spin' : ''}`} />
+                        Refresh
+                    </Button>
+                </div>
+
+                {/* Data Table */}
+                <DataTable columns={stockColumns} data={filteredStockData} />
+
+                {/* Empty State Message */}
+                {!loading && filteredStockData.length === 0 && (
+                    <div className="text-center py-10 text-muted-foreground">
+                        No stock items found. Try adjusting filters or refreshing.
+                    </div>
+                )}
+            </div>
 
             <StockActionDialog
                 isOpen={isDialogOpen}

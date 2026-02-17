@@ -10,7 +10,7 @@ import {
     SelectValue,
 } from "../components/ui/select"
 import { Card, CardContent } from "../components/ui/card"
-import { Search, Loader2, RefreshCw } from "lucide-react"
+import { Search, Loader2, RefreshCw, Download } from "lucide-react"
 import { DataTable } from "../components/ui/data-table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { useOutlet } from "../context/OutletContext"
@@ -224,6 +224,39 @@ export const ExpenditureManagement = () => {
         return matchesSearch && matchesDate
     })
 
+    const downloadExcel = () => {
+        if (filteredExpenses.length === 0) {
+            toast.error("No expenses to export")
+            return
+        }
+
+        // Create CSV content
+        const headers = ["Category", "Description", "Paid To", "Method", "Amount", "Date"]
+        const csvRows = [headers.join(",")]
+
+        filteredExpenses.forEach(exp => {
+            const row = [
+                `"${exp.category}"`,
+                `"${exp.description}"`,
+                `"${exp.paidTo || '-'}"`,
+                exp.method || '-',
+                exp.amount,
+                exp.expenseDate ? formatDateDDMMYYYY(exp.expenseDate) : '-'
+            ]
+            csvRows.push(row.join(","))
+        })
+
+        const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n")
+        const encodedUri = encodeURI(csvContent)
+        const link = document.createElement("a")
+        link.setAttribute("href", encodedUri)
+        link.setAttribute("download", `expenses_export_${new Date().toISOString().split('T')[0]}.csv`)
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        toast.success("Expenses exported successfully")
+    }
+
     const totalExpensesAmount = filteredExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0)
 
     if (loading && expenses.length === 0) {
@@ -278,6 +311,14 @@ export const ExpenditureManagement = () => {
                                 </Button>
                                 <Button variant="outline" onClick={fetchData} className="rounded-xl h-11 px-4 shadow-sm border-border/50" title="Refresh Data">
                                     <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+                                </Button>
+                                <Button
+                                    onClick={downloadExcel}
+                                    className="rounded-xl h-11 px-4 shadow-sm border-border/50 bg-green-600 hover:bg-green-700 text-white"
+                                    title="Export to Excel"
+                                >
+                                    <Download size={18} className="mr-2" />
+                                    Export
                                 </Button>
                             </div>
                         </div>
