@@ -21,6 +21,7 @@ import { Loader2 } from "lucide-react"
 // import { Upload } from "lucide-react"
 import { ProductCard } from "../components/ProductCard"
 import { useOutlet } from "../context/OutletContext"
+import { useAuth } from "../context/AuthContext"
 import { productService } from "../services/productService"
 import type { Product } from "../types/api"
 import toast from "react-hot-toast"
@@ -32,7 +33,8 @@ import toast from "react-hot-toast"
 // For now I'll assume I can pass the API Product object or map it.
 
 export const ProductManagement = () => {
-    const { outletId } = useOutlet()
+    const { outletId, loading: outletLoading, outlets, selectOutlet } = useOutlet()
+    const { user } = useAuth()
 
     const [products, setProducts] = useState<Product[]>([])
     const [loading, setLoading] = useState(true)
@@ -40,6 +42,13 @@ export const ProductManagement = () => {
     // Category filter
     const [categoryFilter, setCategoryFilter] = useState("All")
     const categories = ["All", "Meals", "Beverages", "SpecialFoods", "Starters", "Desserts"]
+
+    // Enforce specific outlet for SuperAdmin on this page
+    useEffect(() => {
+        if (user?.role === 'SUPERADMIN' && (!outletId || outletId === 'ALL') && outlets.length > 0) {
+            selectOutlet(outlets[0].id)
+        }
+    }, [outletId, outlets, user, selectOutlet])
 
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -72,9 +81,15 @@ export const ProductManagement = () => {
     }, [outletId])
 
     useEffect(() => {
+        // Prevent initial fetch for SuperAdmin if outletId is 'ALL' or undefined
+        if (user?.role === 'SUPERADMIN' && (!outletId || outletId === 'ALL')) return;
+
         // Fetch initially or when outletId changes (including when it's null/'ALL')
-        fetchProducts()
-    }, [outletId])
+        // Only fetch if context is done loading
+        if (!outletLoading) {
+            fetchProducts()
+        }
+    }, [outletId, outletLoading, user])
 
     const fetchProducts = async () => {
         try {
@@ -86,8 +101,24 @@ export const ProductManagement = () => {
             console.log("Fetching products for targetId:", targetId)
             const response = await productService.getProducts(targetId)
             console.log("🍴 Products Response:", response)
+
             if (response.success && response.data) {
-                setProducts(response.data)
+                let fetchedProducts = response.data
+
+                // Debug log to check what we got
+                console.log("📦 All fetched products outlet IDs:", fetchedProducts.map(p => ({ id: p.id, outletId: p.outletId })))
+
+                // STRICT FILTERING: Check if backend returned products from other outlets
+                if (targetId && targetId !== 0) {
+                    const originalCount = fetchedProducts.length
+                    fetchedProducts = fetchedProducts.filter(p => Number(p.outletId) === Number(targetId))
+
+                    if (fetchedProducts.length !== originalCount) {
+                        console.warn(`⚠️ FILTERED OUT ${originalCount - fetchedProducts.length} products due to outletId mismatch!`)
+                    }
+                }
+
+                setProducts(fetchedProducts)
             }
         } catch (error) {
             console.error("Failed to fetch products", error)
@@ -247,8 +278,8 @@ export const ProductManagement = () => {
             price: product.price.toString(),
             category: product.category || "",
             imageUrl: product.imageUrl || null,
-            threshold: (product.inventory?.threshold || product.alertThreshold || "10").toString(),
-            minValue: (product.inventory?.minValue || product.minValue || "0").toString(),
+            threshold: (product.inventory?.threshold || (product as any).threshold || (product as any).alertThreshold || "10").toString(),
+            minValue: (product.inventory?.minValue || (product as any).minValue || "0").toString(),
             isVeg: product.isVeg !== undefined ? product.isVeg : true,
             companyPaid: product.companyPaid || false,
             outletId: product.outletId.toString()
@@ -270,8 +301,6 @@ export const ProductManagement = () => {
         }
     }
     */
-
-    const { outlets } = useOutlet(); // Get outlets list for dropdown
 
     const formJSX = (
         <div className="flex gap-6">
@@ -461,7 +490,7 @@ export const ProductManagement = () => {
         </div>
     )
 
-    if (loading) {
+    if (loading || outletLoading) {
         return (
             <div className="flex items-center justify-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -526,9 +555,9 @@ export const ProductManagement = () => {
                                 category: product.category || "",
                                 id: product.id?.toString() || `temp-${Math.random()}`,
                                 foodType: product.isVeg ? "vegetarian" : "non-vegetarian",
-                                stock: product.inventory?.quantity || 0,
-                                alertThreshold: product.inventory?.threshold || 10,
-                                minValue: product.inventory?.minValue || 0,
+                                stock: product.inventory?.quantity || (product as any).quantity || 0,
+                                alertThreshold: product.inventory?.threshold || (product as any).threshold || 10,
+                                minValue: product.inventory?.minValue || (product as any).minValue || 0,
                                 image: product.imageUrl || null
                             }}
                             onEdit={() => openEditDialog(product)}

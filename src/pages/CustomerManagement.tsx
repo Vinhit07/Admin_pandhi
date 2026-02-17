@@ -6,6 +6,7 @@ import { Search, Loader2 } from "lucide-react"
 import { DataTable } from "../components/ui/data-table"
 import { customerService } from "../services"
 import { useOutlet } from "../context/OutletContext"
+import { useAuth } from "../context/AuthContext"
 import { CustomerDetailsDialog } from "../components/dialogs/CustomerDetailsDialog"
 
 // 1. Fixed Interface to match API response exactly
@@ -29,12 +30,16 @@ export const CustomerManagement = () => {
     const [selectedCustomer, setSelectedCustomer] = useState<any>(null)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
 
-    const { outletId } = useOutlet()
+    const { outletId, loading: outletLoading } = useOutlet()
+    const { user } = useAuth()
 
     useEffect(() => {
+        // Wait for outlet context to initialize
+        if (outletLoading) return;
+
         // Fetch initially or when outletId changes (including when it's null/'ALL')
         fetchCustomers()
-    }, [outletId])
+    }, [outletId, user, outletLoading])
 
     const fetchCustomers = async () => {
         try {

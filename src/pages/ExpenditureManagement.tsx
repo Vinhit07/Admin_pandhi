@@ -14,6 +14,7 @@ import { Search, Loader2, RefreshCw, Download } from "lucide-react"
 import { DataTable } from "../components/ui/data-table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { useOutlet } from "../context/OutletContext"
+import { useAuth } from "../context/AuthContext"
 import { expenditureService, reportService } from "../services"
 import { toast } from "react-hot-toast"
 import { formatDateDDMMYYYY } from "../lib/dateUtils"
@@ -32,7 +33,8 @@ interface Expense {
 }
 
 export const ExpenditureManagement = () => {
-    const { outletId } = useOutlet()
+    const { outletId, outlets, selectOutlet, loading: outletLoading } = useOutlet()
+    const { user } = useAuth()
 
     const [searchQuery, setSearchQuery] = useState("")
     const [fromDate, setFromDate] = useState("")
@@ -58,12 +60,25 @@ export const ExpenditureManagement = () => {
     const [paidTo, setPaidTo] = useState("")
     const [selectedOutletId, setSelectedOutletId] = useState<number | string>("")
 
-    const { outlets } = useOutlet() // Get outlets list for dropdown
+
 
     useEffect(() => {
-        // Fetch initially or when outletId changes (including when it's null/'ALL')
+        // If context is loading, wait
+        if (outletLoading) return;
+
+        // Prevent initial fetch for SuperAdmin if outletId is 'ALL' or undefined (Wait for Enforcement)
+        if (user?.role === 'SUPERADMIN' && (!outletId || outletId === 'ALL')) return;
+
+        // Fetch initially or when outletId changes
         fetchData()
-    }, [outletId])
+    }, [outletId, user, outletLoading])
+
+    // Enforce specific outlet for SuperAdmin on this page
+    useEffect(() => {
+        if (user?.role === 'SUPERADMIN' && (!outletId || outletId === 'ALL') && outlets.length > 0) {
+            selectOutlet(outlets[0].id)
+        }
+    }, [outletId, outlets, user, selectOutlet])
 
     const fetchData = async () => {
         try {

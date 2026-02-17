@@ -8,6 +8,7 @@ import { RefreshCw, Search, Loader2 } from "lucide-react"
 import { DataTable } from "../components/ui/data-table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { useOutlet } from "../context/OutletContext"
+import { useAuth } from "../context/AuthContext"
 import { walletService } from "../services"
 
 interface WalletSummary {
@@ -38,7 +39,8 @@ interface PaidOrder {
 }
 
 export const WalletManagement = () => {
-    const { outletId } = useOutlet()
+    const { outletId, loading: outletLoading } = useOutlet()
+    const { user } = useAuth()
     console.log("Rendered WalletManagement. outletId:", outletId) // DEBUG
     const [searchQuery, setSearchQuery] = useState("")
     const [walletData, setWalletData] = useState<WalletSummary[]>([])
@@ -48,10 +50,13 @@ export const WalletManagement = () => {
     const [activeTab, setActiveTab] = useState("summary")
 
     useEffect(() => {
+        // Wait for outlet context to initialize
+        if (outletLoading) return;
+
         // Fetch initially or when outletId changes (including when it's null/'ALL')
         setLoading(true)
         fetchData()
-    }, [outletId])
+    }, [outletId, user, outletLoading])
 
     const fetchData = async () => {
         // Allow fallback to ALL if null. If it's "ALL" string, use 0 for integer-expecting APIs if needed, 

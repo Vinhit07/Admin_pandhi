@@ -12,6 +12,7 @@ import {
 } from "../components/ui/select"
 import { Download, RefreshCw, Search, Loader2 } from "lucide-react"
 import { useOutlet } from "../context/OutletContext"
+import { useAuth } from "../context/AuthContext"
 import { reportService } from "../services"
 import type { AnalyticsParams } from "../types/api"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
@@ -54,7 +55,8 @@ interface CustomerRow {
 }
 
 export const ReportsAnalytics = () => {
-    const { outletId } = useOutlet()
+    const { outletId, loading: outletLoading } = useOutlet()
+    const { user } = useAuth()
 
     const [activeTab, setActiveTab] = useState<ReportTab>("sales")
     const [categoryFilter, setCategoryFilter] = useState("All")
@@ -77,11 +79,14 @@ export const ReportsAnalytics = () => {
     const categories = ["All", "Meals", "Beverages", "SpecialFoods", "Desserts"]
 
     useEffect(() => {
+        // Wait for outlet context to initialize
+        if (outletLoading) return;
+
         // Fetch if outletId is present OR if it's explicitly null/undefined (meaning ALL for SuperAdmin)
         // We just need to make sure we don't fetch if authentication is still loading, 
         // but outletId itself being null is now a valid state for "All".
         fetchData()
-    }, [outletId, activeTab, selectedYear])
+    }, [outletId, activeTab, selectedYear, user, outletLoading])
 
     const fetchData = async () => {
         try {

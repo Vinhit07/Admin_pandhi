@@ -13,8 +13,10 @@ import { Badge } from "../components/ui/badge"
 import { RefreshCw, Search, Loader2, ShoppingBag, BarChart3, Clock, Calendar } from "lucide-react"
 import { DataTable } from "../components/ui/data-table"
 import { useOutlet } from "../context/OutletContext"
+import { useAuth } from "../context/AuthContext"
 import { orderService } from "../services"
 import { OrderDetailsDialog } from "../components/dialogs/OrderDetailsDialog"
+import { getLocalDateString } from "../lib/dateUtils"
 
 interface OrderItem {
     productName: string
@@ -46,6 +48,9 @@ const formatDate = (dateString: string) => {
     return `${day}/${month}/${year}`
 }
 
+// Local helper removed in favor of shared getLocalDateString
+// const getLocalYYYYMMDD = ...
+
 const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", className: string }> = {
         "PENDING": { variant: "secondary", className: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100" },
@@ -58,7 +63,8 @@ const getStatusBadge = (status: string) => {
 }
 
 export const OrderManagement = () => {
-    const { outletId } = useOutlet()
+    const { outletId, outlets, selectOutlet, loading: outletLoading } = useOutlet()
+    const { user } = useAuth()
 
     const [searchQuery, setSearchQuery] = useState("")
     const [statusFilter, setStatusFilter] = useState("all")
@@ -75,12 +81,25 @@ export const OrderManagement = () => {
     const [activeTab, setActiveTab] = useState<"orders" | "live" | "analytics">("orders")
     // Product filter for analytics tab
     const [selectedProduct, setSelectedProduct] = useState<string>("all")
+    // Enforce specific outlet for SuperAdmin on this page
+    useEffect(() => {
+        if (user?.role === 'SUPERADMIN' && (!outletId || outletId === 'ALL') && outlets.length > 0) {
+            selectOutlet(outlets[0].id)
+        }
+    }, [outletId, outlets, user, selectOutlet])
 
     useEffect(() => {
-        // Fetch initially or when outletId changes (including when it's null/'ALL')
+        // If context is loading, wait
+        if (outletLoading) return;
+
+        // Prevent initial fetch for SuperAdmin if outletId is 'ALL' or undefined
+        // This avoids the race condition where it fetches "ALL" before the other hook enforcement selects the first outlet
+        if (user?.role === 'SUPERADMIN' && (!outletId || outletId === 'ALL')) return;
+
+        // Fetch initially or when outletId changes
         setLoading(true)
         fetchOrders()
-    }, [outletId])
+    }, [outletId, user, outletLoading])
 
     const fetchOrders = async () => {
         try {
@@ -374,13 +393,14 @@ export const OrderManagement = () => {
         }
 
         // Exclude Tomorrow's orders from "All Orders" tab (as they are in Live Orders)
-        // Tomorrow calculation
+        // Tomorrow calculation (Local Time)
         const today = new Date()
         const tomorrow = new Date(today)
         tomorrow.setDate(today.getDate() + 1)
-        const tomorrowStr = tomorrow.toISOString().split('T')[0]
+        const tomorrowStr = getLocalDateString(tomorrow)
 
-        const orderDeliveryDate = new Date(order.deliveryDate).toISOString().split('T')[0]
+        // Convert delivery date to local YYYY-MM-DD
+        const orderDeliveryDate = getLocalDateString(new Date(order.deliveryDate))
         const isTomorrow = orderDeliveryDate === tomorrowStr
 
         return matchesSearch && matchesStatus && matchesDate && !isTomorrow
@@ -388,14 +408,14 @@ export const OrderManagement = () => {
 
     // Helper for Live Orders: ONLY show orders for Tomorrow
     const liveOrders = orders.filter(order => {
-        // Calculate Tomorrow's date string (YYYY-MM-DD)
+        // Calculate Tomorrow's date string (Local YYYY-MM-DD)
         const today = new Date()
         const tomorrow = new Date(today)
         tomorrow.setDate(today.getDate() + 1)
-        const tomorrowStr = tomorrow.toISOString().split('T')[0]
+        const tomorrowStr = getLocalDateString(tomorrow)
 
         // Check if order delivery date matches tomorrow
-        const orderDeliveryDate = new Date(order.deliveryDate).toISOString().split('T')[0]
+        const orderDeliveryDate = getLocalDateString(new Date(order.deliveryDate))
 
         return orderDeliveryDate === tomorrowStr
     })

@@ -45,3 +45,15 @@ export const formatDateTimeDDMMYYYY = (date: Date | string | number): string => 
 export const formatDate = formatDateDDMMYYYY;
 export const formatDateTime = formatDateTimeDDMMYYYY;
 
+/**
+ * Returns a date string in YYYY-MM-DD format using the local timezone.
+ * Useful for default values in date inputs (which expect YYYY-MM-DD).
+ * @param date - Date object (defaults to now)
+ */
+export const getLocalDateString = (date: Date = new Date()): string => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+}
+

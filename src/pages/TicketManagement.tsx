@@ -14,6 +14,7 @@ import { Badge } from "../components/ui/badge"
 import { RefreshCw, Search, Loader2 } from "lucide-react"
 import { DataTable } from "../components/ui/data-table"
 import { useOutlet } from "../context/OutletContext"
+import { useAuth } from "../context/AuthContext"
 import { ticketService } from "../services/ticketService"
 import toast from "react-hot-toast"
 import { formatDateDDMMYYYY } from "../lib/dateUtils"
@@ -34,7 +35,8 @@ interface Ticket {
 }
 
 export const TicketManagement = () => {
-    const { outletId } = useOutlet()
+    const { outletId, loading: outletLoading } = useOutlet()
+    const { user } = useAuth()
 
     const [searchQuery, setSearchQuery] = useState("")
     const [statusFilter, setStatusFilter] = useState("all")
@@ -47,10 +49,13 @@ export const TicketManagement = () => {
     const [isChatModalOpen, setIsChatModalOpen] = useState(false)
 
     useEffect(() => {
+        // Wait for outlet context to initialize
+        if (outletLoading) return;
+
         // Fetch initially or when outletId changes (including when it's null/'ALL')
         setLoading(true)
         fetchTickets()
-    }, [outletId])
+    }, [outletId, user, outletLoading])
 
     const fetchTickets = async () => {
         try {

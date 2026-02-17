@@ -4,6 +4,7 @@ import { Card, CardContent } from "../components/ui/card"
 import { Avatar, AvatarFallback } from "../components/ui/avatar"
 import { Mail, Phone, Briefcase, User, Loader2 } from "lucide-react"
 import { useOutlet } from "../context/OutletContext"
+import { useAuth } from "../context/AuthContext"
 import { staffService } from "../services"
 
 interface Staff {
@@ -16,15 +17,19 @@ interface Staff {
 
 export const StaffManagement = () => {
     const navigate = useNavigate()
-    const { outletId } = useOutlet()
+    const { outletId, loading: outletLoading } = useOutlet()
 
     const [staffList, setStaffList] = useState<Staff[]>([])
     const [loading, setLoading] = useState(true)
+    const { user } = useAuth()
 
     useEffect(() => {
+        // Wait for outlet context to initialize
+        if (outletLoading) return;
+
         // Trigger fetch even if outletId is null (All Outlets) or 0
         fetchStaff()
-    }, [outletId])
+    }, [outletId, user, outletLoading])
 
     const fetchStaff = async () => {
         try {
@@ -58,14 +63,7 @@ export const StaffManagement = () => {
         }
     }
 
-    const getInitials = (name: string) => {
-        return name
-            .split(' ')
-            .map(word => word[0])
-            .join('')
-            .toUpperCase()
-            .slice(0, 2)
-    }
+
 
     const handleStaffClick = (staffId: number) => {
         navigate(`/staff-management/${staffId}`)

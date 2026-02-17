@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { useOutlet } from "../context/OutletContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card"
 import { reportService } from "../services"
-import { formatDateDDMMYYYY } from "../lib/dateUtils"
+import { formatDateDDMMYYYY, getLocalDateString } from "../lib/dateUtils"
 import { Loader2, RefreshCw } from "lucide-react"
 import {
     BarChart,
@@ -29,8 +29,8 @@ export const Home = () => {
     const [loading, setLoading] = useState(true)
     const [dashboardData, setDashboardData] = useState<any>(null)
     const [dateRange, setDateRange] = useState({
-        from: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        to: new Date().toISOString().split('T')[0]
+        from: getLocalDateString(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)),
+        to: getLocalDateString()
     })
 
     // Analytics data states
@@ -55,7 +55,16 @@ export const Home = () => {
                 to: dateRange.to
             }
 
-            if (outletId && outletId !== 'ALL') {
+            // For SUPERADMIN, if outletId is 'ALL' or undefined, we want to fetch GLOBAL data.
+            // The backend likely expects no outletId param for global data.
+
+            if (isSuperAdmin) {
+                // If SuperAdmin, and we want global data, ensure outletId is NOT sent if it's 'ALL' or null.
+                // If the user manually selected an outlet (if feature exists), we'd respect it, 
+                // but requirements say "dashboard page only... set outlet id as 0".
+                // So we FORCE it to be global regardless of what context says.
+                delete params.outletId;
+            } else if (outletId && outletId !== 'ALL') {
                 params.outletId = Number(outletId);
             }
 
@@ -92,8 +101,8 @@ export const Home = () => {
     const formatCurrency = (amount: number) => `₹${amount?.toLocaleString() || 0}`
 
     const setQuickDateRange = (days: number) => {
-        const to = new Date().toISOString().split('T')[0]
-        const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        const to = getLocalDateString()
+        const from = getLocalDateString(new Date(Date.now() - days * 24 * 60 * 60 * 1000))
         setDateRange({ from, to })
     }
 
@@ -346,7 +355,7 @@ export const Home = () => {
                 </Card>
 
                 {/* Top Selling Items */}
-                <Card>
+                <Card className="lg:col-span-2">
                     <CardHeader>
                         <CardTitle>Top Selling Items</CardTitle>
                         <CardDescription>Best performing products</CardDescription>

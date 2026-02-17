@@ -13,6 +13,7 @@ import { RefreshCw, Search, Loader2 } from "lucide-react"
 import { DataTable } from "../components/ui/data-table"
 // import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { useOutlet } from "../context/OutletContext"
+import { useAuth } from "../context/AuthContext"
 import { inventoryService } from "../services"
 import { toast } from "react-hot-toast"
 // import { formatDateDDMMYYYY } from "../lib/dateUtils"
@@ -41,7 +42,8 @@ interface StockHistory {
 */
 
 export const InventoryManagement = () => {
-    const { outletId } = useOutlet()
+    const { outletId, outlets, selectOutlet, loading: outletLoading } = useOutlet()
+    const { user } = useAuth()
 
     const [searchQuery, setSearchQuery] = useState("")
     const [categoryFilter, setCategoryFilter] = useState("all")
@@ -50,6 +52,14 @@ export const InventoryManagement = () => {
     // const [historyData, setHistoryData] = useState<StockHistory[]>([])
 
     const [loading, setLoading] = useState(false)
+
+
+    // Enforce specific outlet for SuperAdmin on this page
+    useEffect(() => {
+        if (user?.role === 'SUPERADMIN' && (!outletId || outletId === 'ALL') && outlets.length > 0) {
+            selectOutlet(outlets[0].id)
+        }
+    }, [outletId, outlets, user, selectOutlet])
 
     // Initialize with YYYY-MM-DD format
     // const [fromDate, setFromDate] = useState(() => {
@@ -60,9 +70,15 @@ export const InventoryManagement = () => {
     // const [toDate, setToDate] = useState(() => new Date().toISOString().split('T')[0])
 
     useEffect(() => {
-        // Fetch initially or when outletId changes (including when it's null/'ALL')
+        // If context is loading, wait
+        if (outletLoading) return;
+
+        // Prevent initial fetch for SuperAdmin if outletId is 'ALL' or undefined (Wait for Enforcement)
+        if (user?.role === 'SUPERADMIN' && (!outletId || outletId === 'ALL')) return;
+
+        // Fetch initially or when outletId changes
         fetchData()
-    }, [outletId])
+    }, [outletId, user, outletLoading])
 
     const fetchData = async () => {
         try {
