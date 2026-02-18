@@ -98,7 +98,7 @@ const AdminSignUp: React.FC = () => {
                     </div>
                     <h1 className="text-4xl font-bold text-foreground mb-4">Join Our Team</h1>
                     <p className="text-lg text-muted-foreground">
-                        Create admin account to manage UPS Cafe Vendors and operations.
+                        Create admin account to manage Pandhi Vendors and operations.
                     </p>
                 </div>
             </div>
@@ -111,7 +111,7 @@ const AdminSignUp: React.FC = () => {
                         <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
                             <UserPlus className="h-8 w-8 text-primary-foreground" />
                         </div>
-                        <h1 className="text-2xl font-bold text-foreground">UPS Cafe Admin</h1>
+                        <h1 className="text-2xl font-bold text-foreground">Pandhi Admin</h1>
                     </div>
 
                     <div className="bg-card rounded-xl border-2 border-border p-8 shadow-lg">

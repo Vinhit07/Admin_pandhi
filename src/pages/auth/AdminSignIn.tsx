@@ -86,7 +86,7 @@ const AdminSignIn: React.FC = () => {
                     <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center mx-auto mb-6">
                         <Shield className="h-10 w-10 text-primary-foreground" />
                     </div>
-                    <h1 className="text-4xl font-bold text-foreground mb-4">HungerBox Admin</h1>
+                    <h1 className="text-4xl font-bold text-foreground mb-4">Pandhi Admin</h1>
                     <p className="text-lg text-muted-foreground">
                         {userType === 'admin'
                             ? 'Manage outlets, staff, and operations efficiently.'
@@ -103,7 +103,7 @@ const AdminSignIn: React.FC = () => {
                         <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
                             <Shield className="h-8 w-8 text-primary-foreground" />
                         </div>
-                        <h1 className="text-2xl font-bold text-foreground">HungerBox Admin</h1>
+                        <h1 className="text-2xl font-bold text-foreground">Pandhi Admin</h1>
                     </div>
 
                     <div className="bg-card rounded-xl border-2 border-border p-8 shadow-lg">
