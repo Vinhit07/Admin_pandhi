@@ -1,4 +1,4 @@
-import { useState, useRef } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
 import { Textarea } from "../components/ui/textarea"
@@ -15,95 +15,49 @@ import {
     DialogHeader,
     DialogTitle,
     DialogFooter,
+    DialogDescription,
 } from "../components/ui/dialog"
-import { Edit, Trash2, Upload } from "lucide-react"
+import { Loader2 } from "lucide-react"
+// import { Upload } from "lucide-react"
 import { ProductCard } from "../components/ProductCard"
+import { useOutlet } from "../context/OutletContext"
+import { useAuth } from "../context/AuthContext"
+import { productService } from "../services/productService"
+import type { Product } from "../types/api"
+import toast from "react-hot-toast"
 
-interface Product {
-    id: string
-    name: string
-    description: string
-    price: number
-    category: string
-    foodType: "vegetarian" | "non-vegetarian"
-    image: string | null
-    alertThreshold: number
-    minValue: number
-    stock: number
-}
-
-const mockProducts: Product[] = [
-    {
-        id: "1",
-        name: "briyani",
-        description: "Briyani from store",
-        price: 110,
-        category: "MEALS",
-        foodType: "non-vegetarian",
-        image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=400&h=300&fit=crop",
-        alertThreshold: 10,
-        minValue: 0,
-        stock: 33,
-    },
-    {
-        id: "2",
-        name: "butter milk",
-        description: "the tangy liquid that remains after butter is churned from cream.",
-        price: 10,
-        category: "BEVERAGES",
-        foodType: "vegetarian",
-        image: "https://images.unsplash.com/photo-1571115177098-24ec42ed204d?w=400&h=300&fit=crop",
-        alertThreshold: 10,
-        minValue: 0,
-        stock: 990,
-    },
-    {
-        id: "3",
-        name: "coffee",
-        description: "Coffee kudinga themba irunga",
-        price: 12,
-        category: "MEALS",
-        foodType: "vegetarian",
-        image: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=300&fit=crop",
-        alertThreshold: 10,
-        minValue: 0,
-        stock: 994,
-    },
-    {
-        id: "4",
-        name: "idily",
-        description: "Idly the great",
-        price: 20,
-        category: "MEALS",
-        foodType: "vegetarian",
-        image: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=400&h=300&fit=crop",
-        alertThreshold: 10,
-        minValue: 0,
-        stock: 19,
-    },
-    {
-        id: "5",
-        name: "lemon juice",
-        description: "Lemon and spoon",
-        price: 20,
-        category: "SPECIALFOODS",
-        foodType: "vegetarian",
-        image: "https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=400&h=300&fit=crop",
-        alertThreshold: 10,
-        minValue: 0,
-        stock: 1,
-    },
-]
-
-const categories = ["All", "MEALS", "BEVERAGES", "SPECIALFOODS"]
+// Extended Product interface to include UI-specific fields if needed, 
+// or just mapping API Product to UI.
+// The API Product has: id, name, description, price, category, imageUrl, isAvailable, outletId.
+// The UI 'ProductCard' likely expects specific props. I'll need to check ProductCard or adapt here.
+// For now I'll assume I can pass the API Product object or map it.
 
 export const ProductManagement = () => {
-    const [products, setProducts] = useState<Product[]>(mockProducts)
+    const { outletId, loading: outletLoading, outlets, selectOutlet } = useOutlet()
+    const { user } = useAuth()
+
+    const [products, setProducts] = useState<Product[]>([])
+    const [loading, setLoading] = useState(true)
+
+    // Category filter
     const [categoryFilter, setCategoryFilter] = useState("All")
+    const categories = ["All", "Meals", "Beverages", "SpecialFoods", "Starters", "Desserts"]
+
+    // Enforce specific outlet for SuperAdmin on this page
+    useEffect(() => {
+        if (user?.role === 'SUPERADMIN' && (!outletId || outletId === 'ALL') && outlets.length > 0) {
+            selectOutlet(outlets[0].id)
+        }
+    }, [outletId, outlets, user, selectOutlet])
+
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
-    const fileInputRef = useRef<HTMLInputElement>(null)
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+    const [deletingProductId, setDeletingProductId] = useState<number | null>(null)
+    const [isDeleteLoading, setIsDeleteLoading] = useState(false)
+    // const fileInputRef = useRef<HTMLInputElement>(null)
+    const [imageFile, setImageFile] = useState<File | null>(null)
 
     // Form state
     const [formData, setFormData] = useState({
@@ -111,12 +65,68 @@ export const ProductManagement = () => {
         description: "",
         price: "",
         category: "",
-        foodType: "vegetarian" as "vegetarian" | "non-vegetarian",
-        image: null as string | null,
-        alertThreshold: "10",
+        imageUrl: null as string | null,
+        threshold: "10",
         minValue: "0",
-        stock: "0",
+        isVeg: true,
+        companyPaid: false,
+        outletId: "" // Local outlet selection
     })
+
+    // Update local outletId when global outletId changes, but only if it's a specific outlet
+    useEffect(() => {
+        if (outletId && outletId !== "ALL") {
+            setFormData(prev => ({ ...prev, outletId: outletId.toString() }))
+        }
+    }, [outletId])
+
+    useEffect(() => {
+        // Prevent initial fetch for SuperAdmin if outletId is 'ALL' or undefined
+        if (user?.role === 'SUPERADMIN' && (!outletId || outletId === 'ALL')) return;
+
+        // Fetch initially or when outletId changes (including when it's null/'ALL')
+        // Only fetch if context is done loading
+        if (!outletLoading) {
+            fetchProducts()
+        }
+    }, [outletId, outletLoading, user])
+
+    const fetchProducts = async () => {
+        try {
+            setLoading(true)
+            // If outletId is null/All, pass 0 (as per existing logic `outletId === "ALL" ? 0 : outletId`)
+            // The existing logic already handled string "ALL", we just need to handle null.
+            // If outletId is null/All/undefined, pass 0
+            const targetId = (outletId === "ALL" || !outletId) ? 0 : outletId
+            console.log("Fetching products for targetId:", targetId)
+            const response = await productService.getProducts(targetId)
+            console.log("🍴 Products Response:", response)
+
+            if (response.success && response.data) {
+                let fetchedProducts = response.data
+
+                // Debug log to check what we got
+                console.log("📦 All fetched products outlet IDs:", fetchedProducts.map(p => ({ id: p.id, outletId: p.outletId })))
+
+                // STRICT FILTERING: Check if backend returned products from other outlets
+                if (targetId && targetId !== 0) {
+                    const originalCount = fetchedProducts.length
+                    fetchedProducts = fetchedProducts.filter(p => Number(p.outletId) === Number(targetId))
+
+                    if (fetchedProducts.length !== originalCount) {
+                        console.warn(`⚠️ FILTERED OUT ${originalCount - fetchedProducts.length} products due to outletId mismatch!`)
+                    }
+                }
+
+                setProducts(fetchedProducts)
+            }
+        } catch (error) {
+            console.error("Failed to fetch products", error)
+            toast.error("Failed to load products")
+        } finally {
+            setLoading(false)
+        }
+    }
 
     const filteredProducts = products.filter((product) => {
         if (categoryFilter === "All") return true
@@ -129,103 +139,175 @@ export const ProductManagement = () => {
             description: "",
             price: "",
             category: "",
-            foodType: "vegetarian",
-            image: null,
-            alertThreshold: "10",
+            imageUrl: null,
+            threshold: "10",
             minValue: "0",
-            stock: "0",
+            isVeg: true,
+            companyPaid: false,
+            outletId: (outletId && outletId !== "ALL") ? outletId.toString() : ""
         })
+        setImageFile(null)
     }
 
-    const handleAddProduct = () => {
-        if (!formData.name || !formData.description || !formData.price || !formData.category) {
+    const handleAddProduct = async () => {
+        // Validation: Check name, price, category. Image is OPTIONAL.
+        // Outlet validation: Must have a valid outletId (either from global or form)
+        const targetOutletId = (outletId && outletId !== "ALL") ? outletId : parseInt(formData.outletId)
+
+        if (!formData.name || !formData.price || !formData.category || !targetOutletId) {
+            toast.error("Please fill in all required fields (Name, Price, Category, Outlet)")
             return
         }
 
-        const newProduct: Product = {
-            id: Date.now().toString(),
-            name: formData.name,
-            description: formData.description,
-            price: parseFloat(formData.price),
-            category: formData.category,
-            foodType: formData.foodType,
-            image: formData.image,
-            alertThreshold: parseInt(formData.alertThreshold) || 10,
-            minValue: parseInt(formData.minValue) || 0,
-            stock: parseInt(formData.stock) || 0,
-        }
+        try {
+            const response = await productService.addProduct({
+                name: formData.name,
+                description: formData.description,
+                price: parseFloat(formData.price),
+                category: formData.category,
+                outletId: targetOutletId,
+                threshold: parseInt(formData.threshold) || 10,
+                minValue: parseInt(formData.minValue) || 0,
+                isVeg: formData.isVeg,
+                companyPaid: formData.companyPaid,
+            }, imageFile || undefined)
 
-        setProducts([...products, newProduct])
-        setIsAddDialogOpen(false)
-        resetForm()
+            if (response.success && response.data) {
+                setProducts([...products, response.data])
+                setIsAddDialogOpen(false)
+                resetForm()
+                toast.success("Product added successfully")
+            } else {
+                // Check if response itself has error message even if success is false/undefined
+                const msg = response.message || "Failed to add product"
+                toast.error(msg)
+            }
+        } catch (error: any) {
+            console.error("Error adding product:", error)
+            // Extract error message from API response if available
+            const errorMsg = error.response?.data?.error || error.message || "Failed to add product";
+            // Check for specific "Product already available" message
+            if (errorMsg.includes("Product already available")) {
+                toast.error("A product with this name already exists.");
+            } else {
+                toast.error(errorMsg);
+            }
+        }
     }
 
-    const handleEditProduct = () => {
-        if (!editingProduct || !formData.name || !formData.description || !formData.price || !formData.category) {
+    const handleEditProduct = async () => {
+        if (!editingProduct) return
+
+        // Validate required fields
+        if (!formData.name || !formData.price || !formData.category) {
+            toast.error("Please fill in all required fields (Name, Price, Category)")
             return
         }
 
-        const updatedProducts = products.map((p) =>
-            p.id === editingProduct.id
-                ? {
-                    ...p,
+        try {
+            const response = await productService.updateProduct(
+                editingProduct.id,
+                {
                     name: formData.name,
                     description: formData.description,
                     price: parseFloat(formData.price),
                     category: formData.category,
-                    foodType: formData.foodType,
-                    image: formData.image,
-                    alertThreshold: parseInt(formData.alertThreshold) || 10,
+                    outletId: parseInt(formData.outletId),
+                    threshold: parseInt(formData.threshold) || 10,
                     minValue: parseInt(formData.minValue) || 0,
-                    stock: parseInt(formData.stock) || 0,
-                }
-                : p
-        )
+                    isVeg: formData.isVeg,
+                    companyPaid: formData.companyPaid,
+                },
+                imageFile || undefined
+            )
 
-        setProducts(updatedProducts)
-        setIsEditDialogOpen(false)
-        setEditingProduct(null)
-        resetForm()
+            if (response.success && response.data) {
+                // Update the product in the list
+                setProducts(products.map(p => p.id === editingProduct.id ? response.data! : p))
+                setIsEditDialogOpen(false)
+                setEditingProduct(null)
+                resetForm()
+                toast.success("Product updated successfully")
+            } else {
+                const msg = response.message || "Failed to update product"
+                toast.error(msg)
+            }
+        } catch (error: any) {
+            console.error("Error updating product:", error)
+            const errorMsg = error.response?.data?.error || error.message || "Failed to update product"
+            toast.error(errorMsg)
+        }
     }
 
-    const handleRemoveProduct = (productId: string) => {
-        setProducts(products.filter((p) => p.id !== productId))
+    const handleRemoveProduct = (productId: number) => {
+        setDeletingProductId(productId)
+        setIsDeleteDialogOpen(true)
+    }
+
+    const handleConfirmDeleteProduct = async () => {
+        if (!deletingProductId) return
+
+        try {
+            setIsDeleteLoading(true)
+            const response = await productService.deleteProduct(deletingProductId)
+
+            if (response.success) {
+                // Remove the product from the list
+                setProducts(products.filter(p => p.id !== deletingProductId))
+                setIsDeleteDialogOpen(false)
+                setDeletingProductId(null)
+                toast.success("Product deleted successfully")
+            } else {
+                const msg = response.message || "Failed to delete product"
+                toast.error(msg)
+            }
+        } catch (error: any) {
+            console.error("Error deleting product:", error)
+            const errorMsg = error.response?.data?.error || error.message || "Failed to delete product"
+            toast.error(errorMsg)
+        } finally {
+            setIsDeleteLoading(false)
+        }
     }
 
     const openEditDialog = (product: Product) => {
         setEditingProduct(product)
         setFormData({
             name: product.name,
-            description: product.description,
+            description: product.description || "",
             price: product.price.toString(),
-            category: product.category,
-            foodType: product.foodType,
-            image: product.image,
-            alertThreshold: product.alertThreshold.toString(),
-            minValue: product.minValue.toString(),
-            stock: product.stock.toString(),
+            category: product.category || "",
+            imageUrl: product.imageUrl || null,
+            threshold: (product.inventory?.threshold || (product as any).threshold || (product as any).alertThreshold || "10").toString(),
+            minValue: (product.inventory?.minValue || (product as any).minValue || "0").toString(),
+            isVeg: product.isVeg !== undefined ? product.isVeg : true,
+            companyPaid: product.companyPaid || false,
+            outletId: product.outletId.toString()
         })
         setIsEditDialogOpen(true)
+        setImageFile(null)
     }
 
+    /*
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (file) {
+            setImageFile(file)
             const reader = new FileReader()
             reader.onloadend = () => {
-                setFormData({ ...formData, image: reader.result as string })
+                setFormData({ ...formData, imageUrl: reader.result as string })
             }
             reader.readAsDataURL(file)
         }
     }
+    */
 
     const formJSX = (
         <div className="flex gap-6">
-            {/* Left Side: Live Product Preview */}
-            <div className="w-56 flex-shrink-0">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Live Preview</p>
+            {/* Left Side: Live Product Preview (COMMENTED OUT) */}
+            {/* <div className="w-56 flex-shrink-0">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Live Preview (Optional)</p>
                 <div className="bg-card border-2 border-border rounded-xl overflow-hidden shadow-sm">
-                    {/* Preview Image */}
                     <div
                         className="h-32 bg-muted flex items-center justify-center cursor-pointer relative overflow-hidden group"
                         onClick={() => fileInputRef.current?.click()}
@@ -237,21 +319,17 @@ export const ProductManagement = () => {
                             onChange={handleImageUpload}
                             className="hidden"
                         />
-                        {formData.image ? (
-                            <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
+                        {formData.imageUrl ? (
+                            <img src={formData.imageUrl} alt="Preview" className="w-full h-full object-cover" />
                         ) : (
                             <div className="text-center group-hover:scale-110 transition-transform">
                                 <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-1" />
                                 <p className="text-xs text-muted-foreground">Click to upload</p>
                             </div>
                         )}
-                        {/* Food Type Badge */}
-                        <div className={`absolute top-2 right-2 w-5 h-5 rounded-sm border-2 ${formData.foodType === "vegetarian" ? "border-green-500 bg-green-500" : "border-red-500 bg-red-500"} flex items-center justify-center`}>
-                            <div className="w-2 h-2 rounded-full bg-white" />
-                        </div>
                     </div>
                 </div>
-            </div>
+            </div> */}
 
             {/* Right Side: Form Fields */}
             <div className="flex-1 space-y-4">
@@ -268,18 +346,42 @@ export const ProductManagement = () => {
                     />
                 </div>
 
-                {/* Description */}
+                {/* Description - Optional in backend/frontend UI but good to have */}
                 <div>
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Description <span className="text-destructive">*</span>
+                        Description
                     </label>
                     <Textarea
                         value={formData.description}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        placeholder="Describe your product..."
+                        placeholder="Product description..."
                         className="mt-1.5 min-h-[80px] resize-none"
                     />
                 </div>
+
+                {/* Outlet Selection - Only show if in "All Outlets" view */}
+                {(!outletId || outletId === "ALL") && (
+                    <div>
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            Outlet <span className="text-destructive">*</span>
+                        </label>
+                        <Select
+                            value={formData.outletId}
+                            onValueChange={(value) => setFormData({ ...formData, outletId: value })}
+                        >
+                            <SelectTrigger className="mt-1.5">
+                                <SelectValue placeholder="Select Outlet" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {outlets.map((outlet) => (
+                                    <SelectItem key={outlet.id} value={outlet.id.toString()}>
+                                        {outlet.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
 
                 {/* Price & Category Row */}
                 <div className="grid grid-cols-2 gap-4">
@@ -307,67 +409,26 @@ export const ProductManagement = () => {
                                 <SelectValue placeholder="Select" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="MEALS">Meals</SelectItem>
-                                <SelectItem value="BEVERAGES">Beverages</SelectItem>
-                                <SelectItem value="SPECIALFOODS">Special Foods</SelectItem>
+                                <SelectItem value="Meals">Meals</SelectItem>
+                                <SelectItem value="Beverages">Beverages</SelectItem>
+                                <SelectItem value="SpecialFoods">Special Foods</SelectItem>
+                                <SelectItem value="Starters">Starters</SelectItem>
+                                <SelectItem value="Desserts">Desserts</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
                 </div>
 
-                {/* Food Type */}
-                <div>
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Food Type <span className="text-destructive">*</span>
-                    </label>
-                    <div className="flex gap-3 mt-1.5">
-                        <button
-                            type="button"
-                            onClick={() => setFormData({ ...formData, foodType: "vegetarian" })}
-                            className={`flex-1 py-2.5 rounded-lg font-medium text-xs flex items-center justify-center gap-2 transition-all border ${formData.foodType === "vegetarian"
-                                ? "bg-green-500 border-green-600 text-white shadow-sm"
-                                : "bg-muted border-transparent text-muted-foreground hover:bg-muted/80"
-                                }`}
-                        >
-                            <div className={`w-2.5 h-2.5 rounded-full ${formData.foodType === "vegetarian" ? "bg-white" : "bg-green-500"}`} />
-                            Vegetarian
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setFormData({ ...formData, foodType: "non-vegetarian" })}
-                            className={`flex-1 py-2.5 rounded-lg font-medium text-xs flex items-center justify-center gap-2 transition-all border ${formData.foodType === "non-vegetarian"
-                                ? "bg-red-500 border-red-600 text-white shadow-sm"
-                                : "bg-muted border-transparent text-muted-foreground hover:bg-muted/80"
-                                }`}
-                        >
-                            <div className={`w-2.5 h-2.5 rounded-full ${formData.foodType === "non-vegetarian" ? "bg-white" : "bg-red-500"}`} />
-                            Non-Veg
-                        </button>
-                    </div>
-                </div>
-
-                {/* Stock Settings */}
-                <div className="grid grid-cols-3 gap-4">
-                    <div>
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                            Stock <span className="text-destructive">*</span>
-                        </label>
-                        <Input
-                            type="number"
-                            value={formData.stock}
-                            onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                            placeholder="0"
-                            className="mt-1.5"
-                        />
-                    </div>
+                {/* Threshold & Min Value Row */}
+                <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                             Alert Threshold
                         </label>
                         <Input
                             type="number"
-                            value={formData.alertThreshold}
-                            onChange={(e) => setFormData({ ...formData, alertThreshold: e.target.value })}
+                            value={formData.threshold}
+                            onChange={(e) => setFormData({ ...formData, threshold: e.target.value })}
                             placeholder="10"
                             className="mt-1.5"
                         />
@@ -385,23 +446,71 @@ export const ProductManagement = () => {
                         />
                     </div>
                 </div>
+
+                {/* Food Type & Company Paid Row */}
+                <div className="space-y-3">
+                    <div>
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">
+                            Food Type
+                        </label>
+                        <div className="flex gap-4">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    checked={formData.isVeg}
+                                    onChange={() => setFormData({ ...formData, isVeg: true })}
+                                    className="accent-green-600"
+                                />
+                                <span className="text-sm">Vegetarian</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    checked={!formData.isVeg}
+                                    onChange={() => setFormData({ ...formData, isVeg: false })}
+                                    className="accent-red-600"
+                                />
+                                <span className="text-sm">Non-Vegetarian</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={formData.companyPaid}
+                                onChange={(e) => setFormData({ ...formData, companyPaid: e.target.checked })}
+                                className="accent-blue-600"
+                            />
+                            <span className="text-sm font-medium">Company Paid</span>
+                        </label>
+                    </div>
+                </div>
             </div>
         </div>
     )
 
+    if (loading || outletLoading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
+
     return (
-        <div className="space-y-8 p-8 max-w-[1600px] mx-auto">
+        <div className="space-y-6">
             {/* Header */}
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Product Management</h1>
-                <p className="text-muted-foreground mt-2">Manage your product inventory, pricing, and details.</p>
+            <div className="flex flex-col gap-1">
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">Product Management</h1>
+                <p className="text-muted-foreground">Manage product inventory, pricing, and details</p>
             </div>
 
             {/* Filters and Add Button */}
-            <div className="flex items-center justify-between gap-4 p-1 bg-muted/50 rounded-2xl border border-border">
-                <div className="flex items-center gap-2 p-1">
+            <div className="flex items-center justify-between gap-4">
+                <div className="bg-card rounded-xl shadow-sm border border-border/50 h-11 px-4 flex items-center">
                     <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                        <SelectTrigger className="w-[180px] bg-background border-border shadow-sm">
+                        <SelectTrigger className="w-[180px] border-0 focus:ring-0 h-full p-0">
                             <SelectValue placeholder="All Categories" />
                         </SelectTrigger>
                         <SelectContent>
@@ -419,14 +528,14 @@ export const ProductManagement = () => {
                         resetForm()
                         setIsAddDialogOpen(true)
                     }}
-                    className="shadow-sm"
+                    className="rounded-xl h-11 px-6 shadow-sm border border-border/10"
                 >
                     + Add New Product
                 </Button>
             </div>
 
             {/* Products Section */}
-            <div className="bg-muted/30 border border-border/50 rounded-3xl p-8 min-h-[500px]">
+            <div>
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-lg font-semibold flex items-center gap-2">
                         All Products
@@ -436,13 +545,23 @@ export const ProductManagement = () => {
                     </h2>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {filteredProducts.map((product) => (
                         <ProductCard
                             key={product.id}
-                            product={product}
-                            onEdit={openEditDialog}
-                            onRemove={handleRemoveProduct}
+                            product={{
+                                ...product,
+                                description: product.description || "",
+                                category: product.category || "",
+                                id: product.id?.toString() || `temp-${Math.random()}`,
+                                foodType: product.isVeg ? "vegetarian" : "non-vegetarian",
+                                stock: product.inventory?.quantity || (product as any).quantity || 0,
+                                alertThreshold: product.inventory?.threshold || (product as any).threshold || 10,
+                                minValue: product.inventory?.minValue || (product as any).minValue || 0,
+                                image: product.imageUrl || null
+                            }}
+                            onEdit={() => openEditDialog(product)}
+                            onRemove={() => handleRemoveProduct(product.id)}
                         />
                     ))}
                 </div>
@@ -455,12 +574,12 @@ export const ProductManagement = () => {
                     </div>
                 )}
             </div>
-
             {/* Add Product Dialog */}
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>Add New Product</DialogTitle>
+                        <DialogTitle className="text-2xl font-bold">Add New Product</DialogTitle>
+                        <DialogDescription>Fill in the product details below</DialogDescription>
                     </DialogHeader>
                     {formJSX}
                     <DialogFooter className="gap-2 pt-4">
@@ -479,9 +598,10 @@ export const ProductManagement = () => {
 
             {/* Edit Product Dialog */}
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>Edit Product</DialogTitle>
+                        <DialogTitle className="text-2xl font-bold">Edit Product</DialogTitle>
+                        <DialogDescription>Update the product details below</DialogDescription>
                     </DialogHeader>
                     {formJSX}
                     <DialogFooter className="gap-2 pt-4">
@@ -497,6 +617,40 @@ export const ProductManagement = () => {
                         </Button>
                         <Button onClick={handleEditProduct}>
                             Save Changes
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirm Deletion</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this product? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 pt-4">
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsDeleteDialogOpen(false)}
+                            disabled={isDeleteLoading}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleConfirmDeleteProduct}
+                            disabled={isDeleteLoading}
+                        >
+                            {isDeleteLoading ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Deleting...
+                                </>
+                            ) : (
+                                "Delete"
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect, useMemo } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
@@ -10,75 +10,244 @@ import {
     SelectValue,
 } from "../components/ui/select"
 import { Badge } from "../components/ui/badge"
-import { RefreshCw, Search } from "lucide-react"
+import { RefreshCw, Search, Loader2, ShoppingBag, BarChart3, Clock, Calendar } from "lucide-react"
 import { DataTable } from "../components/ui/data-table"
+import { useOutlet } from "../context/OutletContext"
+import { useAuth } from "../context/AuthContext"
+import { orderService } from "../services"
+import { OrderDetailsDialog } from "../components/dialogs/OrderDetailsDialog"
+import { getLocalDateString } from "../lib/dateUtils"
 
-interface Order {
-    id: string
-    name: string
-    orderItems: string
-    status: "delivered" | "cancelled" | "partially delivered"
-    totalAmount: string
-    orderType: string
-    orderDate: string
-    deliveryDate: string
+interface OrderItem {
+    productName: string
+    quantity: number
+    unitPrice: number
+    totalPrice: number
 }
 
-const mockOrders: Order[] = [
-    { id: "#051", name: "Test", orderItems: "peri peri chicken roll", status: "cancelled", totalAmount: "₹90.00", orderType: "App", orderDate: "05/01/2026", deliveryDate: "15/01/2026" },
-    { id: "#050", name: "Test", orderItems: "peri peri chicken roll", status: "cancelled", totalAmount: "₹90.00", orderType: "App", orderDate: "07/01/2026", deliveryDate: "07/01/2026" },
-    { id: "#049", name: "Test", orderItems: "chicken biryani", status: "cancelled", totalAmount: "₹200.00", orderType: "App", orderDate: "06/01/2026", deliveryDate: "06/01/2026" },
-    { id: "#048", name: "Test", orderItems: "chicken biryani, +2", status: "partially delivered", totalAmount: "₹274.50", orderType: "App", orderDate: "06/01/2026", deliveryDate: "06/01/2026" },
-    { id: "#047", name: "Test", orderItems: "extra chapathi, peri peri chicken roll", status: "delivered", totalAmount: "₹105.00", orderType: "App", orderDate: "06/01/2026", deliveryDate: "06/01/2026" },
-    { id: "#046", name: "Pavan", orderItems: "peri peri chicken roll", status: "cancelled", totalAmount: "₹270.00", orderType: "App", orderDate: "30/12/2025", deliveryDate: "01/01/2026" },
-    { id: "#045", name: "Pavan", orderItems: "chicken biryani", status: "cancelled", totalAmount: "₹180.00", orderType: "App", orderDate: "30/12/2025", deliveryDate: "01/01/2026" },
-    { id: "#044", name: "Sharon Adhitya", orderItems: "chicken biryani", status: "cancelled", totalAmount: "₹90.00", orderType: "App", orderDate: "22/12/2025", deliveryDate: "22/12/2025" },
-    { id: "#043", name: "John Doe", orderItems: "mutton biryani", status: "delivered", totalAmount: "₹350.00", orderType: "App", orderDate: "20/12/2025", deliveryDate: "20/12/2025" },
-    { id: "#042", name: "Jane Smith", orderItems: "veg biryani", status: "delivered", totalAmount: "₹150.00", orderType: "App", orderDate: "19/12/2025", deliveryDate: "19/12/2025" },
-    { id: "#041", name: "Mike Johnson", orderItems: "chicken 65", status: "partially delivered", totalAmount: "₹180.00", orderType: "App", orderDate: "18/12/2025", deliveryDate: "18/12/2025" },
-    { id: "#040", name: "Sarah Williams", orderItems: "paneer tikka", status: "delivered", totalAmount: "₹220.00", orderType: "App", orderDate: "17/12/2025", deliveryDate: "17/12/2025" },
-    { id: "#039", name: "Tom Brown", orderItems: "fish fry", status: "cancelled", totalAmount: "₹280.00", orderType: "App", orderDate: "16/12/2025", deliveryDate: "16/12/2025" },
-    { id: "#038", name: "Alice Cooper", orderItems: "egg curry", status: "delivered", totalAmount: "₹120.00", orderType: "App", orderDate: "15/12/2025", deliveryDate: "15/12/2025" },
-    { id: "#037", name: "Bob Martin", orderItems: "dal tadka", status: "delivered", totalAmount: "₹100.00", orderType: "App", orderDate: "14/12/2025", deliveryDate: "14/12/2025" },
-]
+interface Order {
+    orderId: number
+    customerName: string
+    customerPhone: string
+    items: OrderItem[]
+    status: string
+    totalAmount: number
+    type: string
+    orderTime: string
+    deliveryDate: string
+    deliverySlot: string
+    paymentMethod: string
+}
+
+const formatDate = (dateString: string) => {
+    if (!dateString) return "N/A"
+    const date = new Date(dateString)
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const year = date.getFullYear()
+    return `${day}/${month}/${year}`
+}
+
+// Local helper removed in favor of shared getLocalDateString
+// const getLocalYYYYMMDD = ...
 
 const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", className: string }> = {
-        "delivered": { variant: "default", className: "bg-green-100 text-green-800 hover:bg-green-100" },
-        "cancelled": { variant: "destructive", className: "bg-red-100 text-red-800 hover:bg-red-100" },
-        "partially delivered": { variant: "secondary", className: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100" }
+    const statusMap: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", className: string }> = {
+        "PENDING": { variant: "secondary", className: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100" },
+        "DELIVERED": { variant: "default", className: "bg-green-100 text-green-800 hover:bg-green-100" },
+        "CANCELLED": { variant: "destructive", className: "bg-red-100 text-red-800 hover:bg-red-100" },
+        "PARTIALLY_DELIVERED": { variant: "secondary", className: "bg-orange-100 text-orange-800 hover:bg-orange-100" }
     }
-    const config = variants[status] || variants["delivered"]
-    return <Badge variant={config.variant} className={config.className}>{status}</Badge>
+    const config = statusMap[status] || statusMap["PENDING"]
+    return <Badge variant={config.variant} className={config.className}>{status.toLowerCase()}</Badge>
 }
 
 export const OrderManagement = () => {
+    const { outletId, outlets, selectOutlet, loading: outletLoading } = useOutlet()
+    const { user } = useAuth()
+
     const [searchQuery, setSearchQuery] = useState("")
     const [statusFilter, setStatusFilter] = useState("all")
-    const [orders, setOrders] = useState(mockOrders)
+    const [dateRange, setDateRange] = useState({
+        from: "",
+        to: ""
+    })
+    const [orders, setOrders] = useState<Order[]>([])
+    const [loading, setLoading] = useState(false)
+    const [selectedOrder, setSelectedOrder] = useState<any>(null)
+    const [isDialogOpen, setIsDialogOpen] = useState(false)
 
-    const handleRefresh = () => {
-        setOrders([...mockOrders])
-        setSearchQuery("")
-        setStatusFilter("all")
+    // Tab state: "orders" | "live" | "analytics"
+    const [activeTab, setActiveTab] = useState<"orders" | "live" | "analytics">("orders")
+    // Product filter for analytics tab
+    const [selectedProduct, setSelectedProduct] = useState<string>("all")
+    // Enforce specific outlet for SuperAdmin on this page
+    useEffect(() => {
+        if (user?.role === 'SUPERADMIN' && (!outletId || outletId === 'ALL') && outlets.length > 0) {
+            selectOutlet(outlets[0].id)
+        }
+    }, [outletId, outlets, user, selectOutlet])
+
+    useEffect(() => {
+        // If context is loading, wait
+        if (outletLoading) return;
+
+        // Prevent initial fetch for SuperAdmin if outletId is 'ALL' or undefined
+        // This avoids the race condition where it fetches "ALL" before the other hook enforcement selects the first outlet
+        if (user?.role === 'SUPERADMIN' && (!outletId || outletId === 'ALL')) return;
+
+        // Fetch initially or when outletId changes
+        setLoading(true)
+        fetchOrders()
+    }, [outletId, user, outletLoading])
+
+    const fetchOrders = async () => {
+        try {
+            setLoading(true)
+            const targetOutletId = outletId || "ALL"
+            const response = await orderService.getOrders(targetOutletId)
+            setOrders(response.data || [])
+        } catch (error) {
+            console.error('Error fetching orders:', error)
+        } finally {
+            setLoading(false)
+        }
     }
 
-    // Define columns for the data table
+    const handleRefresh = () => {
+        fetchOrders()
+        setSearchQuery("")
+        setStatusFilter("all")
+        setSelectedProduct("all")
+        setDateRange({ from: "", to: "" })
+    }
+
+
+
+    const handleViewOrder = (order: Order) => {
+        setSelectedOrder({
+            orderId: order.orderId,
+            customerName: order.customerName,
+            customerPhone: order.customerPhone,
+            status: order.status,
+            deliveryDate: order.deliveryDate,
+            deliverySlot: order.deliverySlot,
+            type: order.type,
+            paymentMethod: order.paymentMethod,
+            items: order.items,
+            totalAmount: order.totalAmount
+        })
+        setIsDialogOpen(true)
+    }
+
+    // Extract unique product names from all orders
+    const uniqueProducts = useMemo(() => {
+        const productSet = new Set<string>()
+        orders.forEach(order => {
+            order.items?.forEach(item => {
+                if (item.productName) {
+                    productSet.add(item.productName)
+                }
+            })
+        })
+        return Array.from(productSet).sort()
+    }, [orders])
+
+    // Product analytics data
+    const productAnalytics = useMemo(() => {
+        if (selectedProduct === "all") {
+            // Show analytics for ALL products
+            const productMap = new Map<string, { totalQuantity: number, orderCount: number, totalRevenue: number }>()
+            orders.forEach(order => {
+                order.items?.forEach(item => {
+                    if (item.productName) {
+                        const existing = productMap.get(item.productName) || { totalQuantity: 0, orderCount: 0, totalRevenue: 0 }
+                        existing.totalQuantity += item.quantity
+                        existing.totalRevenue += item.totalPrice || (item.unitPrice * item.quantity)
+                        productMap.set(item.productName, existing)
+                    }
+                })
+            })
+            // Count unique orders per product
+            orders.forEach(order => {
+                const seenProducts = new Set<string>()
+                order.items?.forEach(item => {
+                    if (item.productName && !seenProducts.has(item.productName)) {
+                        seenProducts.add(item.productName)
+                        const existing = productMap.get(item.productName)!
+                        existing.orderCount += 1
+                    }
+                })
+            })
+            return Array.from(productMap.entries()).map(([name, data]) => ({
+                productName: name,
+                ...data
+            })).sort((a, b) => b.totalQuantity - a.totalQuantity)
+        }
+        return []
+    }, [orders, selectedProduct])
+
+    // Filter orders that contain the selected product
+    const productFilteredOrders = useMemo(() => {
+        if (selectedProduct === "all") return orders
+        return orders.filter(order =>
+            order.items?.some(item =>
+                item.productName?.toLowerCase() === selectedProduct.toLowerCase()
+            )
+        )
+    }, [orders, selectedProduct])
+
+    // Grand total quantity of the selected product
+    const grandTotalQuantity = useMemo(() => {
+        if (selectedProduct === "all") {
+            return orders.reduce((total, order) =>
+                total + (order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0)
+                , 0)
+        }
+        return productFilteredOrders.reduce((total, order) => {
+            const matchingItems = order.items?.filter(item =>
+                item.productName?.toLowerCase() === selectedProduct.toLowerCase()
+            ) || []
+            return total + matchingItems.reduce((sum, item) => sum + item.quantity, 0)
+        }, 0)
+    }, [orders, productFilteredOrders, selectedProduct])
+
+    // Grand total revenue of the selected product
+    const grandTotalRevenue = useMemo(() => {
+        if (selectedProduct === "all") {
+            return orders.reduce((total, order) =>
+                total + (order.items?.reduce((sum, item) => sum + (item.totalPrice || item.unitPrice * item.quantity), 0) || 0)
+                , 0)
+        }
+        return productFilteredOrders.reduce((total, order) => {
+            const matchingItems = order.items?.filter(item =>
+                item.productName?.toLowerCase() === selectedProduct.toLowerCase()
+            ) || []
+            return total + matchingItems.reduce((sum, item) => sum + (item.totalPrice || item.unitPrice * item.quantity), 0)
+        }, 0)
+    }, [orders, productFilteredOrders, selectedProduct])
+
+    // Define columns for the data table (Orders tab)
     const columns: ColumnDef<Order>[] = [
         {
-            accessorKey: "id",
+            accessorKey: "orderId",
             header: "ORDER ID",
             cell: ({ row }) => (
-                <span className="font-medium text-primary">{row.getValue("id")}</span>
+                <span className="font-medium text-primary">{row.getValue("orderId")}</span>
             ),
         },
         {
-            accessorKey: "name",
+            accessorKey: "customerName",
             header: "NAME",
         },
         {
-            accessorKey: "orderItems",
+            accessorKey: "items",
             header: "ORDER ITEMS",
+            cell: ({ row }) => {
+                const items = row.getValue("items") as OrderItem[]
+                const itemNames = items?.map(item => item.productName).join(", ") || "N/A"
+                return <span className="text-sm">{itemNames}</span>
+            }
         },
         {
             accessorKey: "status",
@@ -89,31 +258,114 @@ export const OrderManagement = () => {
             accessorKey: "totalAmount",
             header: "TOTAL AMOUNT",
             cell: ({ row }) => (
-                <span className="font-semibold">{row.getValue("totalAmount")}</span>
+                <span className="font-semibold">₹{Number(row.getValue("totalAmount")).toFixed(2)}</span>
             ),
         },
         {
-            accessorKey: "orderType",
+            accessorKey: "type",
             header: "ORDER TYPE",
-            cell: ({ row }) => (
-                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                    {row.getValue("orderType")}
-                </Badge>
-            ),
+            cell: ({ row }) => {
+                const type = row.getValue("type") as string;
+                const isManual = type === "MANUAL";
+                return (
+                    <Badge
+                        variant="outline"
+                        className={isManual
+                            ? "bg-green-50 text-green-700 border-green-200"
+                            : "bg-blue-50 text-blue-700 border-blue-200"}
+                    >
+                        {type}
+                    </Badge>
+                );
+            },
         },
         {
-            accessorKey: "orderDate",
+            accessorKey: "orderTime",
             header: "ORDER DATE",
+            cell: ({ row }) => (
+                <span>{formatDate(row.getValue("orderTime"))}</span>
+            ),
         },
         {
             accessorKey: "deliveryDate",
             header: "DELIVERY DATE",
+            cell: ({ row }) => (
+                <span>{formatDate(row.getValue("deliveryDate"))}</span>
+            ),
         },
         {
             id: "actions",
             header: "ACTIONS",
-            cell: () => (
-                <Button size="sm" className="rounded-full">
+            cell: ({ row }) => (
+                <Button
+                    size="sm"
+                    className="rounded-full"
+                    onClick={() => handleViewOrder(row.original)}
+                >
+                    View
+                </Button>
+            ),
+        },
+    ]
+
+    // Columns for the product-filtered orders table (Analytics tab with specific product selected)
+    const productOrderColumns: ColumnDef<Order>[] = [
+        {
+            accessorKey: "orderId",
+            header: "ORDER ID",
+            cell: ({ row }) => (
+                <span className="font-medium text-primary">{row.getValue("orderId")}</span>
+            ),
+        },
+        {
+            accessorKey: "customerName",
+            header: "NAME",
+        },
+        {
+            id: "productQty",
+            header: "QTY OF PRODUCT",
+            cell: ({ row }) => {
+                const items = row.original.items || []
+                const matchingItems = items.filter(item =>
+                    item.productName?.toLowerCase() === selectedProduct.toLowerCase()
+                )
+                const qty = matchingItems.reduce((sum, item) => sum + item.quantity, 0)
+                return <span className="font-semibold text-primary">{qty}</span>
+            }
+        },
+        {
+            id: "productTotal",
+            header: "PRODUCT TOTAL",
+            cell: ({ row }) => {
+                const items = row.original.items || []
+                const matchingItems = items.filter(item =>
+                    item.productName?.toLowerCase() === selectedProduct.toLowerCase()
+                )
+                const total = matchingItems.reduce((sum, item) => sum + (item.totalPrice || item.unitPrice * item.quantity), 0)
+                return <span className="font-semibold">₹{total.toFixed(2)}</span>
+            }
+        },
+        {
+            accessorKey: "status",
+            header: "STATUS",
+            cell: ({ row }) => getStatusBadge(row.getValue("status")),
+        },
+        {
+            accessorKey: "orderTime",
+            header: "ORDER DATE",
+            cell: ({ row }) => (
+                <span>{formatDate(row.getValue("orderTime"))}</span>
+            ),
+        },
+        {
+            id: "actions",
+            header: "ACTIONS",
+            cell: ({ row }) => (
+                <Button
+                    size="sm"
+                    className="rounded-full"
+                    onClick={() => handleViewOrder(row.original)}
+                >
                     View
                 </Button>
             ),
@@ -121,59 +373,327 @@ export const OrderManagement = () => {
     ]
 
     const filteredOrders = orders.filter(order => {
-        const matchesSearch = order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            order.name.toLowerCase().includes(searchQuery.toLowerCase())
+        const matchesSearch =
+            String(order.orderId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (order.customerName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (order.customerPhone || '').toLowerCase().includes(searchQuery.toLowerCase())
         const matchesStatus = statusFilter === "all" || order.status === statusFilter
-        return matchesSearch && matchesStatus
+
+        // Date Range Filtering
+        let matchesDate = true
+        if (dateRange.from) {
+            const orderDate = new Date(order.orderTime).setHours(0, 0, 0, 0)
+            const fromDate = new Date(dateRange.from).setHours(0, 0, 0, 0)
+            matchesDate = matchesDate && orderDate >= fromDate
+        }
+        if (dateRange.to) {
+            const orderDate = new Date(order.orderTime).setHours(0, 0, 0, 0)
+            const toDate = new Date(dateRange.to).setHours(0, 0, 0, 0)
+            matchesDate = matchesDate && orderDate <= toDate
+        }
+
+        // Exclude Tomorrow's orders from "All Orders" tab (as they are in Live Orders)
+        // Tomorrow calculation (Local Time)
+        const today = new Date()
+        const tomorrow = new Date(today)
+        tomorrow.setDate(today.getDate() + 1)
+        const tomorrowStr = getLocalDateString(tomorrow)
+
+        // Convert delivery date to local YYYY-MM-DD
+        const orderDeliveryDate = getLocalDateString(new Date(order.deliveryDate))
+        const isTomorrow = orderDeliveryDate === tomorrowStr
+
+        return matchesSearch && matchesStatus && matchesDate && !isTomorrow
     })
+
+    // Helper for Live Orders: ONLY show orders for Tomorrow
+    const liveOrders = orders.filter(order => {
+        // Calculate Tomorrow's date string (Local YYYY-MM-DD)
+        const today = new Date()
+        const tomorrow = new Date(today)
+        tomorrow.setDate(today.getDate() + 1)
+        const tomorrowStr = getLocalDateString(tomorrow)
+
+        // Check if order delivery date matches tomorrow
+        const orderDeliveryDate = getLocalDateString(new Date(order.deliveryDate))
+
+        return orderDeliveryDate === tomorrowStr
+    })
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">
-            {/* Header */}
+            <div className="flex flex-col gap-1">
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">Order Management</h1>
+                <p className="text-muted-foreground">Monitor and process incoming orders</p>
+            </div>
 
-
-            {/* Filters and Search - Pill shaped */}
-            <div className="flex items-center gap-4">
-                {/* Status Filter */}
-                <div className="bg-sidebar border-2 border-sidebar-border rounded-full px-4 py-2 shadow-md">
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-[180px] border-0 focus:ring-0">
-                            <SelectValue placeholder="All Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Status</SelectItem>
-                            <SelectItem value="delivered">Delivered</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
-                            <SelectItem value="partially delivered">Partially Delivered</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                {/* Search - Pill shaped */}
-                <div className="bg-sidebar border-2 border-sidebar-border rounded-full px-4 py-2 shadow-md flex items-center gap-2 flex-1 max-w-md">
-                    <Search size={20} className="text-muted-foreground" />
-                    <Input
-                        placeholder="Search by ID or Name"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
-                    />
-                </div>
-
-                {/* Refresh Button - Pill shaped */}
-                <Button
-                    onClick={handleRefresh}
-                    className="rounded-full px-6 shadow-md"
+            {/* Tab Switcher */}
+            <div className="flex items-center gap-2">
+                <button
+                    onClick={() => setActiveTab("orders")}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${activeTab === "orders"
+                        ? "bg-primary text-primary-foreground shadow-md"
+                        : "bg-card text-muted-foreground border border-border/50 hover:bg-accent hover:text-accent-foreground"
+                        }`}
                 >
-                    <RefreshCw size={18} className="mr-2" />
-                    Refresh
-                </Button>
+                    <ShoppingBag size={16} />
+                    All Orders
+                </button>
+                <button
+                    onClick={() => setActiveTab("live")}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${activeTab === "live"
+                        ? "bg-primary text-primary-foreground shadow-md"
+                        : "bg-card text-muted-foreground border border-border/50 hover:bg-accent hover:text-accent-foreground"
+                        }`}
+                >
+                    <Clock size={16} />
+                    Live Orders
+                </button>
+                <button
+                    onClick={() => setActiveTab("analytics")}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${activeTab === "analytics"
+                        ? "bg-primary text-primary-foreground shadow-md"
+                        : "bg-card text-muted-foreground border border-border/50 hover:bg-accent hover:text-accent-foreground"
+                        }`}
+                >
+                    <BarChart3 size={16} />
+                    Product Analytics
+                </button>
             </div>
 
-            {/* Data Table - Pill shaped container */}
-            <div className="bg-sidebar border-2 border-sidebar-border rounded-3xl p-6 shadow-lg">
-                <DataTable columns={columns} data={filteredOrders} />
-            </div>
+            {/* =================== ORDERS TAB =================== */}
+            {activeTab === "orders" && (
+                <>
+                    {/* Filters and Search */}
+                    <div className="flex items-center gap-4">
+                        <div className="bg-card rounded-xl shadow-sm border border-border/50">
+                            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                <SelectTrigger className="w-[180px] border-0 focus:ring-0 h-11 px-4">
+                                    <SelectValue placeholder="All Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Status</SelectItem>
+                                    <SelectItem value="PENDING">Pending</SelectItem>
+                                    <SelectItem value="DELIVERED">Delivered</SelectItem>
+                                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                                    <SelectItem value="PARTIALLY_DELIVERED">Partially Delivered</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 flex-1 max-w-md h-11 px-4">
+                            <Search size={18} className="text-muted-foreground shrink-0" />
+                            <Input
+                                placeholder="Search by ID or Name"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-full"
+                            />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 h-11 px-3">
+                                <Calendar size={16} className="text-muted-foreground" />
+                                <Input
+                                    type="date"
+                                    value={dateRange.from}
+                                    onChange={(e) => setDateRange(prev => ({ ...prev, from: e.target.value }))}
+                                    className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent w-32 h-full p-0 text-sm"
+                                    placeholder="From"
+                                />
+                                <span className="text-muted-foreground">-</span>
+                                <Input
+                                    type="date"
+                                    value={dateRange.to}
+                                    onChange={(e) => setDateRange(prev => ({ ...prev, to: e.target.value }))}
+                                    className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent w-32 h-full p-0 text-sm"
+                                    placeholder="To"
+                                />
+                            </div>
+
+                            <Button
+                                onClick={handleRefresh}
+                                className="rounded-xl h-11 px-4 shadow-sm border border-border/10"
+                                variant="outline"
+                                title="Refresh"
+                            >
+                                <RefreshCw size={18} />
+                            </Button>
+
+
+                        </div>
+                    </div>
+
+                    <DataTable columns={columns} data={filteredOrders} />
+                </>
+            )}
+
+            {/* =================== LIVE ORDERS TAB =================== */}
+            {activeTab === "live" && (
+                <>
+                    <div className="flex items-center justify-between gap-4 mb-4">
+                        <div className="flex flex-col gap-1">
+                            <h2 className="text-xl font-semibold">Live Orders (Tomorrow)</h2>
+                            <p className="text-sm text-muted-foreground">Orders scheduled for delivery tomorrow</p>
+                        </div>
+                        <Button
+                            onClick={handleRefresh}
+                            className="rounded-xl h-11 px-6 shadow-sm border border-border/10"
+                        >
+                            <RefreshCw size={18} className="mr-2" />
+                            Refresh
+                        </Button>
+                    </div>
+
+                    {liveOrders.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center p-12 bg-card rounded-xl border border-border/50 text-center">
+                            <div className="bg-muted/50 p-4 rounded-full mb-4">
+                                <Clock size={32} className="text-muted-foreground" />
+                            </div>
+                            <h3 className="text-lg font-medium">No Live Orders</h3>
+                            <p className="text-muted-foreground mt-1">There are no pending or active orders at the moment.</p>
+                        </div>
+                    ) : (
+                        <DataTable columns={columns} data={liveOrders} />
+                    )}
+                </>
+            )}
+
+            {/* =================== PRODUCT ANALYTICS TAB =================== */}
+            {activeTab === "analytics" && (
+                <>
+                    {/* Product Filter */}
+                    <div className="flex items-center gap-4">
+                        <div className="bg-card rounded-xl shadow-sm border border-border/50">
+                            <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+                                <SelectTrigger className="w-[260px] border-0 focus:ring-0 h-11 px-4">
+                                    <SelectValue placeholder="Select Product" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Products</SelectItem>
+                                    {uniqueProducts.map((product) => (
+                                        <SelectItem key={product} value={product}>
+                                            {product}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <Button
+                            onClick={handleRefresh}
+                            className="rounded-xl h-11 px-6 shadow-sm border border-border/10"
+                        >
+                            <RefreshCw size={18} className="mr-2" />
+                            Refresh
+                        </Button>
+                    </div>
+
+                    {/* Summary Stats Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-card rounded-xl border border-border/50 p-5 shadow-sm">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                                {selectedProduct === "all" ? "Total Items Ordered" : `Total "${selectedProduct}" Ordered`}
+                            </p>
+                            <p className="text-3xl font-bold text-primary">{grandTotalQuantity}</p>
+                            <p className="text-xs text-muted-foreground mt-1">across {productFilteredOrders.length} order(s)</p>
+                        </div>
+                        <div className="bg-card rounded-xl border border-border/50 p-5 shadow-sm">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                                Orders Containing Product
+                            </p>
+                            <p className="text-3xl font-bold text-foreground">{productFilteredOrders.length}</p>
+                            <p className="text-xs text-muted-foreground mt-1">out of {orders.length} total order(s)</p>
+                        </div>
+                        <div className="bg-card rounded-xl border border-border/50 p-5 shadow-sm">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                                Product Revenue
+                            </p>
+                            <p className="text-3xl font-bold text-green-500">₹{grandTotalRevenue.toFixed(2)}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                {selectedProduct === "all" ? "all products combined" : `from "${selectedProduct}"`}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Product Breakdown Table (when "All Products" selected) */}
+                    {selectedProduct === "all" && productAnalytics.length > 0 && (
+                        <div className="bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden">
+                            <div className="px-5 py-4 border-b border-border/50">
+                                <h3 className="text-sm font-semibold text-foreground">Product-wise Breakdown</h3>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="border-b border-border/50 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                            <th className="text-left px-5 py-3">#</th>
+                                            <th className="text-left px-5 py-3">Product Name</th>
+                                            <th className="text-center px-5 py-3">Total Quantity</th>
+                                            <th className="text-center px-5 py-3">Orders</th>
+                                            <th className="text-right px-5 py-3">Revenue</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {productAnalytics.map((item, index) => (
+                                            <tr
+                                                key={item.productName}
+                                                className="border-b border-border/30 hover:bg-accent/50 cursor-pointer transition-colors"
+                                                onClick={() => setSelectedProduct(item.productName)}
+                                            >
+                                                <td className="px-5 py-3 text-sm text-muted-foreground">{index + 1}</td>
+                                                <td className="px-5 py-3">
+                                                    <span className="font-medium text-foreground">{item.productName}</span>
+                                                </td>
+                                                <td className="px-5 py-3 text-center">
+                                                    <span className="inline-flex items-center justify-center px-2.5 py-0.5 bg-primary/10 text-primary text-sm font-bold rounded-full">
+                                                        {item.totalQuantity}
+                                                    </span>
+                                                </td>
+                                                <td className="px-5 py-3 text-center text-sm text-muted-foreground">{item.orderCount}</td>
+                                                <td className="px-5 py-3 text-right font-semibold text-green-500">₹{item.totalRevenue.toFixed(2)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Filtered Orders Table (when specific product selected) */}
+                    {selectedProduct !== "all" && (
+                        <>
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-lg font-semibold text-foreground">
+                                    Orders with "{selectedProduct}"
+                                </h3>
+                                <button
+                                    onClick={() => setSelectedProduct("all")}
+                                    className="text-xs text-primary hover:underline ml-2"
+                                >
+                                    ← Back to all products
+                                </button>
+                            </div>
+                            <DataTable columns={productOrderColumns} data={productFilteredOrders} />
+                        </>
+                    )}
+                </>
+            )}
+
+            {/* Order Details Dialog */}
+            <OrderDetailsDialog
+                open={isDialogOpen}
+                onClose={() => setIsDialogOpen(false)}
+                order={selectedOrder}
+            />
         </div>
     )
 }
+

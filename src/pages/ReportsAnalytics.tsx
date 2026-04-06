@@ -1,5 +1,8 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import type { ColumnDef } from "@tanstack/react-table"
+import { formatDate } from "../lib/dateUtils"
 import { Input } from "../components/ui/input"
+import { DataTable } from "../components/ui/data-table"
 import {
     Select,
     SelectContent,
@@ -7,53 +10,64 @@ import {
     SelectTrigger,
     SelectValue,
 } from "../components/ui/select"
-import { Download, RefreshCw, Search } from "lucide-react"
+import { Download, RefreshCw, Search, Loader2 } from "lucide-react"
+import { useOutlet } from "../context/OutletContext"
+import { useAuth } from "../context/AuthContext"
+import { reportService } from "../services"
+import type { AnalyticsParams } from "../types/api"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 
 type ReportTab = "sales" | "revenue" | "profit" | "customers"
 
-// Mock data for Sales Report
-const mockSalesData = [
-    { id: 1, product: "Briyani", category: "Meals", price: 110, orders: 156, revenue: 17160 },
-    { id: 2, product: "Butter Milk", category: "Beverages", price: 10, orders: 234, revenue: 2340 },
-    { id: 3, product: "Coffee", category: "Beverages", price: 12, orders: 189, revenue: 2268 },
-    { id: 4, product: "Idly", category: "Meals", price: 20, orders: 312, revenue: 6240 },
-    { id: 5, product: "Lemon Juice", category: "SpecialFoods", price: 20, orders: 98, revenue: 1960 },
-    { id: 6, product: "Dosa", category: "Meals", price: 40, orders: 245, revenue: 9800 },
-    { id: 7, product: "Puri", category: "Meals", price: 35, orders: 178, revenue: 6230 },
-    { id: 8, product: "Tea", category: "Beverages", price: 8, orders: 423, revenue: 3384 },
-]
+// --- Types ---
+interface SalesRow {
+    productName: string
+    category: string
+    quantity: number
+    revenue: number
+    totalOrders: number
+}
 
-// Mock data for Revenue Analytics
-const mockRevenueData = [
-    { id: 1, source: "Dine-in", category: "Direct", amount: 48000, percentage: 58, transactions: 312 },
-    { id: 2, source: "Takeaway", category: "Direct", amount: 22000, percentage: 27, transactions: 189 },
-    { id: 3, source: "Delivery", category: "Partner", amount: 12000, percentage: 15, transactions: 98 },
-    { id: 4, source: "Zomato", category: "Partner", amount: 8500, percentage: 10, transactions: 67 },
-    { id: 5, source: "Swiggy", category: "Partner", amount: 7200, percentage: 9, transactions: 54 },
-]
+interface RevenueRow {
+    source: string
+    category: string
+    amount: number
+    percentage: string | number
+    transactions: number
+}
 
-// Mock data for Profit/Loss
-const mockProfitData = [
-    { id: 1, month: "January", revenue: 82000, expenses: 48000, profit: 34000, margin: 41.5 },
-    { id: 2, month: "February", revenue: 78000, expenses: 45000, profit: 33000, margin: 42.3 },
-    { id: 3, month: "March", revenue: 95000, expenses: 52000, profit: 43000, margin: 45.3 },
-    { id: 4, month: "April", revenue: 88000, expenses: 49000, profit: 39000, margin: 44.3 },
-]
+interface ProfitRow {
+    month: string
+    revenue: number
+    sales: number
+    expenses: number
+    profit: number
+    margin: number
+}
 
-// Mock data for Customer Trends
-const mockCustomerData = [
-    { id: 1, name: "John Doe", orders: 15, totalSpent: 4500, lastOrder: "2026-01-25", status: "Active" },
-    { id: 2, name: "Jane Smith", orders: 8, totalSpent: 2400, lastOrder: "2026-01-24", status: "Active" },
-    { id: 3, name: "Mike Johnson", orders: 3, totalSpent: 890, lastOrder: "2026-01-20", status: "New" },
-    { id: 4, name: "Sarah Wilson", orders: 22, totalSpent: 6600, lastOrder: "2026-01-26", status: "VIP" },
-    { id: 5, name: "David Brown", orders: 5, totalSpent: 1500, lastOrder: "2026-01-15", status: "Inactive" },
-]
+interface CustomerRow {
+    name: string
+    customerName: string
+    orders: number
+    totalSpent: number
+    lastOrder: string
+    status: string
+}
 
 export const ReportsAnalytics = () => {
+    const { outletId, loading: outletLoading } = useOutlet()
+    const { user } = useAuth()
+
     const [activeTab, setActiveTab] = useState<ReportTab>("sales")
     const [categoryFilter, setCategoryFilter] = useState("All")
     const [searchQuery, setSearchQuery] = useState("")
     const [selectedYear, setSelectedYear] = useState("2026")
+
+    const [salesData, setSalesData] = useState<SalesRow[]>([])
+    const [revenueData, setRevenueData] = useState<RevenueRow[]>([])
+    const [profitData, setProfitData] = useState<ProfitRow[]>([])
+    const [customerData, setCustomerData] = useState<CustomerRow[]>([])
+    const [loading, setLoading] = useState(true)
 
     const tabs = [
         { id: "sales" as ReportTab, label: "Sales Report" },
@@ -64,23 +78,153 @@ export const ReportsAnalytics = () => {
 
     const categories = ["All", "Meals", "Beverages", "SpecialFoods", "Desserts"]
 
+    useEffect(() => {
+        // Wait for outlet context to initialize
+        if (outletLoading) return;
+
+        // Fetch if outletId is present OR if it's explicitly null/undefined (meaning ALL for SuperAdmin)
+        // We just need to make sure we don't fetch if authentication is still loading, 
+        // but outletId itself being null is now a valid state for "All".
+        fetchData()
+    }, [outletId, activeTab, selectedYear, user, outletLoading])
+
+    const fetchData = async () => {
+        try {
+            setLoading(true)
+            const params: AnalyticsParams = {
+                from: `${selectedYear}-01-01`,
+                to: `${selectedYear}-12-31`,
+            }
+
+            // Use "ALL" if outletId is null
+            const targetOutletId = outletId || "ALL"
+
+            switch (activeTab) {
+                case "sales":
+                    const salesRes = await reportService.getSalesReport(targetOutletId, params)
+                    if (Array.isArray(salesRes)) {
+                        setSalesData(salesRes)
+                    } else if (salesRes?.data && Array.isArray(salesRes.data)) {
+                        setSalesData(salesRes.data)
+                    } else {
+                        setSalesData([])
+                    }
+                    break
+
+                case "revenue":
+                    const revenueRes = await reportService.getRevenueSplit(targetOutletId, params)
+                    const revenueRaw = (revenueRes as any).data || revenueRes
+
+                    if (revenueRaw) {
+                        const total = revenueRaw.totalRevenue || 0
+                        const revenueArray: RevenueRow[] = [
+                            {
+                                source: "App Orders",
+                                category: "Online",
+                                amount: revenueRaw.revenueByAppOrder || 0,
+                                percentage: total > 0 ? ((revenueRaw.revenueByAppOrder / total) * 100).toFixed(1) : 0,
+                                transactions: 0
+                            },
+                            {
+                                source: "Manual Orders",
+                                category: "Offline",
+                                amount: revenueRaw.revenueByManualOrder || 0,
+                                percentage: total > 0 ? ((revenueRaw.revenueByManualOrder / total) * 100).toFixed(1) : 0,
+                                transactions: 0
+                            },
+                            {
+                                source: "Wallet Recharge",
+                                category: "Digital Wallet",
+                                amount: revenueRaw.revenueByWalletRecharge || 0,
+                                percentage: total > 0 ? ((revenueRaw.revenueByWalletRecharge / total) * 100).toFixed(1) : 0,
+                                transactions: 0
+                            }
+                        ]
+                        setRevenueData(revenueArray)
+                    }
+                    break
+
+                case "profit":
+                    const profitParams = { year: parseInt(selectedYear) }
+                    const profitRes = await reportService.getProfitLossTrends(targetOutletId, profitParams)
+
+                    let rawProfitData: any[] = []
+                    if (Array.isArray(profitRes)) {
+                        rawProfitData = profitRes
+                    } else if (profitRes?.data && Array.isArray(profitRes.data)) {
+                        rawProfitData = profitRes.data
+                    }
+
+                    // Map backend fields (sales) to frontend fields (revenue) and compute margin
+                    const mappedProfitData: ProfitRow[] = rawProfitData.map((row: any) => {
+                        const revenue = row.sales || row.revenue || 0
+                        const expenses = row.expenses || 0
+                        const profit = row.profit || (revenue - expenses)
+                        const margin = revenue > 0 ? parseFloat(((profit / revenue) * 100).toFixed(1)) : 0
+                        return {
+                            month: row.month,
+                            revenue,
+                            sales: revenue,
+                            expenses,
+                            profit,
+                            margin,
+                        }
+                    })
+                    setProfitData(mappedProfitData)
+                    break
+
+                case "customers":
+                    const customerRes = await reportService.getCustomerOverview(targetOutletId, params)
+                    const customerRaw = (customerRes as any).data || customerRes
+
+                    if (customerRaw) {
+                        const customerArray: CustomerRow[] = [
+                            {
+                                name: "New Customers",
+                                customerName: "New Customers",
+                                orders: customerRaw.newCustomers || 0,
+                                totalSpent: customerRaw.newCustomerRevenue || 0,
+                                lastOrder: "-",
+                                status: "New"
+                            },
+                            {
+                                name: "Returning Customers",
+                                customerName: "Returning Customers",
+                                orders: customerRaw.returningCustomers || 0,
+                                totalSpent: customerRaw.returningCustomerRevenue || 0,
+                                lastOrder: "-",
+                                status: "Active"
+                            }
+                        ]
+                        setCustomerData(customerArray)
+                    }
+                    break
+            }
+        } catch (error) {
+            console.error("Error fetching report data:", error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
     // Filter sales data
-    const filteredSalesData = mockSalesData.filter((item) => {
-        const matchesCategory = categoryFilter === "All" || item.category === categoryFilter
-        const matchesSearch = item.product.toLowerCase().includes(searchQuery.toLowerCase())
+    const filteredSalesData = salesData.filter((item) => {
+        const matchesCategory = categoryFilter === "All" || (item.category && item.category === categoryFilter)
+        const matchesSearch = searchQuery === "" || item.productName?.toLowerCase().includes(searchQuery.toLowerCase())
         return matchesCategory && matchesSearch
     })
 
     // Filter revenue data
-    const filteredRevenueData = mockRevenueData.filter((item) => {
+    const filteredRevenueData = revenueData.filter((item) => {
         const matchesCategory = categoryFilter === "All" || item.category === categoryFilter
-        const matchesSearch = item.source.toLowerCase().includes(searchQuery.toLowerCase())
+        const matchesSearch = item.source?.toLowerCase().includes(searchQuery.toLowerCase())
         return matchesCategory && matchesSearch
     })
 
     // Filter customer data
-    const filteredCustomerData = mockCustomerData.filter((item) => {
-        const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const filteredCustomerData = customerData.filter((item) => {
+        const matchesSearch = item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.customerName?.toLowerCase().includes(searchQuery.toLowerCase())
         return matchesSearch
     })
 
@@ -108,7 +252,7 @@ export const ReportsAnalytics = () => {
                 filename = "revenue_analytics"
                 break
             case "profit":
-                dataToExport = mockProfitData
+                dataToExport = profitData
                 filename = "profit_loss_report"
                 break
             case "customers":
@@ -117,7 +261,10 @@ export const ReportsAnalytics = () => {
                 break
         }
 
-        if (dataToExport.length === 0) return
+        if (dataToExport.length === 0) {
+            alert("No data to export")
+            return
+        }
 
         const headers = Object.keys(dataToExport[0]).join(",")
         const csvContent = [
@@ -138,6 +285,141 @@ export const ReportsAnalytics = () => {
         }
     }
 
+    // --- Column Definitions ---
+
+    const salesColumns: ColumnDef<SalesRow>[] = [
+        {
+            accessorKey: "productName",
+            header: "Product",
+            cell: ({ row }) => <span className="text-foreground font-bold">{row.getValue("productName") || 'N/A'}</span>,
+        },
+        {
+            accessorKey: "category",
+            header: "Category",
+            cell: ({ row }) => <span className="text-foreground">{row.getValue("category") || 'N/A'}</span>,
+        },
+        {
+            id: "price",
+            header: "Price",
+            cell: ({ row }) => {
+                const qty = row.original.quantity
+                const rev = row.original.revenue
+                return <span className="text-green-700 font-medium">₹{qty > 0 ? (rev / qty).toFixed(2) : '0.00'}</span>
+            },
+        },
+        {
+            accessorKey: "totalOrders",
+            header: "Orders",
+            cell: ({ row }) => <span className="text-foreground">{row.getValue("totalOrders") || 0}</span>,
+        },
+        {
+            accessorKey: "revenue",
+            header: "Revenue",
+            cell: ({ row }) => <span className="text-green-700 font-bold">₹{((row.getValue("revenue") as number) || 0).toLocaleString()}</span>,
+        },
+    ]
+
+    const revenueColumns: ColumnDef<RevenueRow>[] = [
+        {
+            accessorKey: "source",
+            header: "Source",
+            cell: ({ row }) => <span className="text-foreground font-bold">{row.getValue("source") || 'N/A'}</span>,
+        },
+        {
+            accessorKey: "category",
+            header: "Category",
+            cell: ({ row }) => <span className="text-foreground">{row.getValue("category") || 'N/A'}</span>,
+        },
+        {
+            accessorKey: "amount",
+            header: "Amount",
+            cell: ({ row }) => <span className="text-green-700 font-bold">₹{((row.getValue("amount") as number) || 0).toLocaleString()}</span>,
+        },
+        {
+            accessorKey: "percentage",
+            header: "Percentage",
+            cell: ({ row }) => <span className="text-blue-700 font-medium">{row.getValue("percentage") || 0}%</span>,
+        },
+        {
+            accessorKey: "transactions",
+            header: "Transactions",
+            cell: ({ row }) => <span className="text-foreground">{row.getValue("transactions") || 0}</span>,
+        },
+    ]
+
+    const profitColumns: ColumnDef<ProfitRow>[] = [
+        {
+            accessorKey: "month",
+            header: "Month",
+            cell: ({ row }) => <span className="text-foreground font-bold">{row.getValue("month") || 'N/A'}</span>,
+        },
+        {
+            accessorKey: "revenue",
+            header: "Revenue",
+            cell: ({ row }) => <span className="text-green-700 font-bold">₹{((row.getValue("revenue") as number) || 0).toLocaleString()}</span>,
+        },
+        {
+            accessorKey: "expenses",
+            header: "Expenses",
+            cell: ({ row }) => <span className="text-red-500 font-medium">₹{((row.getValue("expenses") as number) || 0).toLocaleString()}</span>,
+        },
+        {
+            accessorKey: "profit",
+            header: "Profit/Loss",
+            cell: ({ row }) => {
+                const profit = (row.getValue("profit") as number) || 0
+                return <span className={`font-bold ${profit >= 0 ? 'text-green-700' : 'text-red-500'}`}>₹{profit.toLocaleString()}</span>
+            },
+        },
+        {
+            accessorKey: "margin",
+            header: "Margin",
+            cell: ({ row }) => <span className="text-blue-700 font-medium">{row.getValue("margin") || 0}%</span>,
+        },
+    ]
+
+    const customerColumns: ColumnDef<CustomerRow>[] = [
+        {
+            accessorKey: "name",
+            header: "Customer",
+            cell: ({ row }) => <span className="text-foreground font-bold">{row.original.name || row.original.customerName || 'N/A'}</span>,
+        },
+        {
+            accessorKey: "orders",
+            header: "Orders",
+            cell: ({ row }) => <span className="text-foreground">{row.getValue("orders") || 0}</span>,
+        },
+        {
+            accessorKey: "totalSpent",
+            header: "Total Spent",
+            cell: ({ row }) => <span className="text-green-700 font-bold">₹{((row.getValue("totalSpent") as number) || 0).toLocaleString()}</span>,
+        },
+        {
+            accessorKey: "lastOrder",
+            header: "Last Order",
+            cell: ({ row }) => {
+                const val = row.getValue("lastOrder") as string
+                return <span className="text-foreground">{val && val !== '-' ? formatDate(val) : 'N/A'}</span>
+            },
+        },
+        {
+            accessorKey: "status",
+            header: "Status",
+            cell: ({ row }) => {
+                const status = (row.getValue("status") as string) || 'Active'
+                return <span className={`font-medium ${getStatusColor(status)}`}>{status}</span>
+            },
+        },
+    ]
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -152,286 +434,86 @@ export const ReportsAnalytics = () => {
                 </button>
             </div>
 
-            {/* Tab Navigation */}
-            <div className="flex gap-1 bg-muted/50 p-1 rounded-xl w-fit">
-                {tabs.map((tab) => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === tab.id
-                            ? "bg-card text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
-                            }`}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
-            </div>
+            <Tabs defaultValue="sales" onValueChange={(val) => setActiveTab(val as ReportTab)} value={activeTab} className="w-full space-y-6">
+                {/* Tab Navigation */}
+                <TabsList className="grid w-full max-w-2xl grid-cols-4 h-12">
+                    {tabs.map((tab) => (
+                        <TabsTrigger key={tab.id} value={tab.id}>
+                            {tab.label}
+                        </TabsTrigger>
+                    ))}
+                </TabsList>
 
-            {/* Filters Row */}
-            <div className="flex items-center gap-4 flex-wrap">
-                {activeTab !== "profit" && (
-                    <>
-                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                            <SelectTrigger className="w-[150px] bg-yellow-100 dark:bg-yellow-900/30 border-2 border-yellow-200 dark:border-yellow-700 text-foreground rounded-xl">
-                                <SelectValue placeholder="All Categories" />
+                {/* Shared Filters Row (Outside TabsContent if common, or inside if specific) */}
+                {/* In this case, filters vary by tab, so we keep them in a shared row but conditionally rendered */}
+                <div className="flex items-center gap-4 flex-wrap">
+                    {activeTab === "sales" && (
+                        <>
+                            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                                <SelectTrigger className="w-[180px] border-0 focus:ring-0 h-11 px-4 rounded-xl shadow-sm border border-border/50">
+                                    <SelectValue placeholder="All Categories" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {categories.map((cat) => (
+                                        <SelectItem key={cat} value={cat}>
+                                            {cat === "All" ? "All Categories" : cat}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            <div className="relative flex-1 max-w-md">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input
+                                    type="text"
+                                    placeholder="Search item"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="pl-10 h-11 rounded-xl border-border"
+                                />
+                            </div>
+                        </>
+                    )}
+
+                    {activeTab === "profit" && (
+                        <Select value={selectedYear} onValueChange={setSelectedYear}>
+                            <SelectTrigger className="w-[120px] bg-yellow-100 dark:bg-yellow-900/30 border-2 border-yellow-200 dark:border-yellow-700 text-foreground rounded-xl">
+                                <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                {categories.map((cat) => (
-                                    <SelectItem key={cat} value={cat}>
-                                        {cat === "All" ? "All Categories" : cat}
-                                    </SelectItem>
-                                ))}
+                                <SelectItem value="2024">2024</SelectItem>
+                                <SelectItem value="2025">2025</SelectItem>
+                                <SelectItem value="2026">2026</SelectItem>
                             </SelectContent>
                         </Select>
+                    )}
 
-                        <div className="relative flex-1 max-w-md">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <Input
-                                type="text"
-                                placeholder="Search item"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-10 h-10 rounded-xl border-border"
-                            />
-                        </div>
-                    </>
-                )}
-
-                {activeTab === "profit" && (
-                    <Select value={selectedYear} onValueChange={setSelectedYear}>
-                        <SelectTrigger className="w-[120px] bg-yellow-100 dark:bg-yellow-900/30 border-2 border-yellow-200 dark:border-yellow-700 text-foreground rounded-xl">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="2024">2024</SelectItem>
-                            <SelectItem value="2025">2025</SelectItem>
-                            <SelectItem value="2026">2026</SelectItem>
-                        </SelectContent>
-                    </Select>
-                )}
-
-                <button className="px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 bg-card border border-border text-foreground hover:bg-muted transition-colors">
-                    <RefreshCw className="w-4 h-4" />
-                    Refresh
-                </button>
-            </div>
-
-            {/* Sales Report Table */}
-            {activeTab === "sales" && (
-                <div className="bg-card rounded-2xl border border-border overflow-hidden">
-                    <div className="p-4 border-b border-border">
-                        <h2 className="text-lg font-semibold text-foreground">Current Sales Status</h2>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b border-border">
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Product</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Category</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Price</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Orders</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Revenue</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredSalesData.map((item) => (
-                                    <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                                        <td className="px-6 py-4 text-foreground">{item.product}</td>
-                                        <td className="px-6 py-4 text-muted-foreground">{item.category}</td>
-                                        <td className="px-6 py-4 text-green-500 font-medium">₹{item.price.toFixed(2)}</td>
-                                        <td className="px-6 py-4 text-muted-foreground">{item.orders}</td>
-                                        <td className="px-6 py-4 text-green-500 font-semibold">₹{item.revenue.toLocaleString()}</td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex gap-2">
-                                                <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-500 text-white hover:bg-green-600 transition-colors">
-                                                    View
-                                                </button>
-                                                <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-pink-500 text-white hover:bg-pink-600 transition-colors">
-                                                    Export
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div className="p-4 border-t border-border flex items-center justify-between">
-                        <span className="text-sm text-green-500">Showing 1 to {filteredSalesData.length} of {filteredSalesData.length} results</span>
-                        <div className="flex items-center gap-2">
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">«</button>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">‹</button>
-                            <span className="px-3 py-1.5 text-sm text-foreground">Page 1 of 1</span>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">›</button>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">»</button>
-                        </div>
-                    </div>
+                    <button
+                        onClick={fetchData}
+                        className="px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 bg-card border border-border text-foreground hover:bg-muted transition-colors"
+                    >
+                        <RefreshCw className="w-4 h-4" />
+                        Refresh
+                    </button>
                 </div>
-            )}
 
-            {/* Revenue Analytics Table */}
-            {activeTab === "revenue" && (
-                <div className="bg-card rounded-2xl border border-border overflow-hidden">
-                    <div className="p-4 border-b border-border">
-                        <h2 className="text-lg font-semibold text-foreground">Revenue by Source</h2>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b border-border">
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Source</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Category</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Amount</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Percentage</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Transactions</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredRevenueData.map((item) => (
-                                    <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                                        <td className="px-6 py-4 text-foreground">{item.source}</td>
-                                        <td className="px-6 py-4 text-muted-foreground">{item.category}</td>
-                                        <td className="px-6 py-4 text-green-500 font-semibold">₹{item.amount.toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-blue-500">{item.percentage}%</td>
-                                        <td className="px-6 py-4 text-muted-foreground">{item.transactions}</td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex gap-2">
-                                                <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-500 text-white hover:bg-green-600 transition-colors">
-                                                    Details
-                                                </button>
-                                                <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-pink-500 text-white hover:bg-pink-600 transition-colors">
-                                                    Export
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div className="p-4 border-t border-border flex items-center justify-between">
-                        <span className="text-sm text-green-500">Showing 1 to {filteredRevenueData.length} of {filteredRevenueData.length} results</span>
-                        <div className="flex items-center gap-2">
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">«</button>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">‹</button>
-                            <span className="px-3 py-1.5 text-sm text-foreground">Page 1 of 1</span>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">›</button>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">»</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+                {/* Data Tables wrapped in Content */}
+                <TabsContent value="sales">
+                    <DataTable columns={salesColumns} data={filteredSalesData} pageSize={10} />
+                </TabsContent>
 
-            {/* Profit/Loss Report Table */}
-            {activeTab === "profit" && (
-                <div className="bg-card rounded-2xl border border-border overflow-hidden">
-                    <div className="p-4 border-b border-border">
-                        <h2 className="text-lg font-semibold text-foreground">Profit/Loss Trends - {selectedYear}</h2>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b border-border">
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Month</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Revenue</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Expenses</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Profit/Loss</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Margin</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {mockProfitData.map((item) => (
-                                    <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                                        <td className="px-6 py-4 text-foreground">{item.month}</td>
-                                        <td className="px-6 py-4 text-green-500 font-medium">₹{item.revenue.toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-red-500 font-medium">₹{item.expenses.toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-green-500 font-semibold">₹{item.profit.toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-blue-500">{item.margin}%</td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex gap-2">
-                                                <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-500 text-white hover:bg-green-600 transition-colors">
-                                                    Details
-                                                </button>
-                                                <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-pink-500 text-white hover:bg-pink-600 transition-colors">
-                                                    Export
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div className="p-4 border-t border-border flex items-center justify-between">
-                        <span className="text-sm text-green-500">Showing 1 to {mockProfitData.length} of {mockProfitData.length} results</span>
-                        <div className="flex items-center gap-2">
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">«</button>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">‹</button>
-                            <span className="px-3 py-1.5 text-sm text-foreground">Page 1 of 1</span>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">›</button>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">»</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+                <TabsContent value="revenue">
+                    <DataTable columns={revenueColumns} data={filteredRevenueData} pageSize={10} />
+                </TabsContent>
 
-            {/* Customer Trends Table */}
-            {activeTab === "customers" && (
-                <div className="bg-card rounded-2xl border border-border overflow-hidden">
-                    <div className="p-4 border-b border-border">
-                        <h2 className="text-lg font-semibold text-foreground">Customer Overview</h2>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b border-border">
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Customer</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Orders</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Total Spent</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Last Order</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredCustomerData.map((item) => (
-                                    <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                                        <td className="px-6 py-4 text-foreground">{item.name}</td>
-                                        <td className="px-6 py-4 text-muted-foreground">{item.orders}</td>
-                                        <td className="px-6 py-4 text-green-500 font-semibold">₹{item.totalSpent.toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-muted-foreground">{item.lastOrder}</td>
-                                        <td className={`px-6 py-4 font-medium ${getStatusColor(item.status)}`}>{item.status}</td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex gap-2">
-                                                <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-500 text-white hover:bg-green-600 transition-colors">
-                                                    View
-                                                </button>
-                                                <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-pink-500 text-white hover:bg-pink-600 transition-colors">
-                                                    History
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div className="p-4 border-t border-border flex items-center justify-between">
-                        <span className="text-sm text-green-500">Showing 1 to {filteredCustomerData.length} of {filteredCustomerData.length} results</span>
-                        <div className="flex items-center gap-2">
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">«</button>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">‹</button>
-                            <span className="px-3 py-1.5 text-sm text-foreground">Page 1 of 1</span>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">›</button>
-                            <button className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted">»</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+                <TabsContent value="profit">
+                    <DataTable columns={profitColumns} data={profitData} pageSize={12} />
+                </TabsContent>
+
+                <TabsContent value="customers">
+                    <DataTable columns={customerColumns} data={filteredCustomerData} pageSize={10} />
+                </TabsContent>
+            </Tabs>
         </div>
     )
 }

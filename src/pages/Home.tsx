@@ -1,92 +1,424 @@
+import { useState, useEffect } from "react"
+import { useOutlet } from "../context/OutletContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card"
-import { Badge } from "../components/ui/badge"
+import { reportService } from "../services"
+import { formatDateDDMMYYYY, getLocalDateString } from "../lib/dateUtils"
+import { Loader2, RefreshCw } from "lucide-react"
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    PieChart,
+    Pie,
+    Cell,
+    Legend,
+    LineChart,
+    Line
+} from "recharts"
+import { useAuth } from "../context/AuthContext"
 
 export const Home = () => {
+    const { outletId } = useOutlet()
+    const { user } = useAuth()
+    const isSuperAdmin = user?.role === 'SUPERADMIN'
+
+    const [loading, setLoading] = useState(true)
+    const [dashboardData, setDashboardData] = useState<any>(null)
+    const [dateRange, setDateRange] = useState({
+        from: getLocalDateString(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)),
+        to: getLocalDateString()
+    })
+
+    // Analytics data states
+    const [revenueTrend, setRevenueTrend] = useState<any[]>([])
+    const [orderStatusDist, setOrderStatusDist] = useState<any>(null)
+    const [orderSourceDist, setOrderSourceDist] = useState<any>(null)
+    const [topSellingItems, setTopSellingItems] = useState<any[]>([])
+    // const [peakTimeSlots, setPeakTimeSlots] = useState<any[]>([])
+
+    useEffect(() => {
+        // Wait for outletId to be initialized (it might be null briefly)
+        if (outletId === undefined) return;
+
+        fetchAllData()
+    }, [dateRange, outletId])
+
+    const fetchAllData = async () => {
+        try {
+            setLoading(true)
+            const params: any = {
+                from: dateRange.from,
+                to: dateRange.to
+            }
+
+            // For SUPERADMIN, if outletId is 'ALL' or undefined, we want to fetch GLOBAL data.
+            // The backend likely expects no outletId param for global data.
+
+            if (isSuperAdmin) {
+                // If SuperAdmin, and we want global data, ensure outletId is NOT sent if it's 'ALL' or null.
+                // If the user manually selected an outlet (if feature exists), we'd respect it, 
+                // but requirements say "dashboard page only... set outlet id as 0".
+                // So we FORCE it to be global regardless of what context says.
+                delete params.outletId;
+            } else if (outletId && outletId !== 'ALL') {
+                params.outletId = Number(outletId);
+            }
+
+            console.log('📊 Fetching dashboard data with params:', params)
+
+            const [overview, revenue, orderStatus, orderSource, topItems] = await Promise.all([
+                reportService.getDashboardOverview(params),
+                reportService.getRevenueTrend(params),
+                reportService.getOrderStatusDistribution(params),
+                reportService.getOrderSourceDistribution(params),
+                reportService.getTopSellingItems(params),
+                // reportService.getPeakTimeSlots(params)
+            ])
+
+            const overviewData = (overview as any)?.data ? (overview as any).data : overview
+
+            setDashboardData(overviewData)
+            const sortedRevenue = Array.isArray(revenue)
+                ? revenue.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                : []
+            setRevenueTrend(sortedRevenue)
+            setOrderStatusDist(orderStatus)
+            setOrderSourceDist(orderSource)
+            setTopSellingItems(Array.isArray(topItems) ? topItems : [])
+            // setPeakTimeSlots(Array.isArray(peakSlots) ? peakSlots : [])
+
+        } catch (error) {
+            console.error('❌ Error fetching dashboard data:', error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const formatCurrency = (amount: number) => `₹${amount?.toLocaleString() || 0}`
+
+    const setQuickDateRange = (days: number) => {
+        const to = getLocalDateString()
+        const from = getLocalDateString(new Date(Date.now() - days * 24 * 60 * 60 * 1000))
+        setDateRange({ from, to })
+    }
+
+    const getOrderStatusPieData = () => {
+        if (!orderStatusDist) return []
+        return [
+            { name: 'Delivered', value: orderStatusDist.delivered || 0, color: '#10b981' },
+            { name: 'Pending', value: orderStatusDist.pending || 0, color: '#f59e0b' },
+            { name: 'Cancelled', value: orderStatusDist.cancelled || 0, color: '#ef4444' },
+            { name: 'Partially Delivered', value: orderStatusDist.partiallyDelivered || 0, color: '#3b82f6' }
+        ].filter(item => item.value > 0)
+    }
+
+    const getOrderSourcePieData = () => {
+        if (!orderSourceDist) return []
+        return [
+            { name: 'App Orders', value: orderSourceDist.appOrders || 0, color: '#8b5cf6' },
+            { name: 'Manual Orders', value: orderSourceDist.manualOrders || 0, color: '#ec4899' }
+        ].filter(item => item.value > 0)
+    }
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
+
     return (
-        <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-                <p className="text-muted-foreground">Welcome back! Here's your overview.</p>
+        <div className="space-y-4 pb-4">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-foreground">Analytics Dashboard</h1>
+                    <p className="text-muted-foreground">Comprehensive overview of business metrics</p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-lg border border-border">
+                        {[
+                            { label: "7 Days", val: 7 },
+                            { label: "30 Days", val: 30 },
+                            { label: "90 Days", val: 90 }
+                        ].map(q => {
+                            const isCurrentRange = Math.round((new Date(dateRange.to).getTime() - new Date(dateRange.from).getTime()) / (24 * 60 * 60 * 1000)) === q.val;
+                            return (
+                                <button
+                                    key={q.val}
+                                    onClick={() => setQuickDateRange(q.val)}
+                                    className={`
+                                        px-3 py-1 rounded-md text-xs font-semibold transition-all duration-200
+                                        ${isCurrentRange
+                                            ? 'bg-primary text-primary-foreground shadow-sm'
+                                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                        }
+                                    `}
+                                >
+                                    {q.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-card">
+                        <input
+                            type="date"
+                            value={dateRange.from}
+                            onChange={(e) => setDateRange(prev => ({ ...prev, from: e.target.value }))}
+                            className="bg-transparent text-sm outline-none border-none p-0 w-[110px]"
+                        />
+                        <span className="text-xs text-muted-foreground">to</span>
+                        <input
+                            type="date"
+                            value={dateRange.to}
+                            onChange={(e) => setDateRange(prev => ({ ...prev, to: e.target.value }))}
+                            className="bg-transparent text-sm outline-none border-none p-0 w-[110px]"
+                        />
+                    </div>
+
+                    <button
+                        onClick={fetchAllData}
+                        className="p-2 rounded-lg border border-border bg-card text-foreground hover:bg-muted transition-colors"
+                        title="Refresh"
+                    >
+                        <RefreshCw size={18} />
+                    </button>
+                </div>
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                {isSuperAdmin && (
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardDescription>Active Vendors</CardDescription>
+                            <CardTitle className="text-3xl text-green-600">
+                                {dashboardData?.totalActiveOutlets || 0}
+                            </CardTitle>
+                        </CardHeader>
+                    </Card>
+                )}
+
                 <Card>
                     <CardHeader className="pb-3">
                         <CardDescription>Total Revenue</CardDescription>
-                        <CardTitle className="text-3xl text-primary">$12,345</CardTitle>
+                        <CardTitle className="text-3xl text-primary">
+                            {formatCurrency(dashboardData?.totalRevenue || 0)}
+                        </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <p className="text-xs text-muted-foreground">+20.1% from last month</p>
-                    </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader className="pb-3">
-                        <CardDescription>Active Orders</CardDescription>
-                        <CardTitle className="text-3xl text-secondary">156</CardTitle>
+                        <CardDescription>Total Customers</CardDescription>
+                        <CardTitle className="text-3xl text-purple-600">
+                            {dashboardData?.totalCustomers || 0}
+                        </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <p className="text-xs text-muted-foreground">+12 new today</p>
-                    </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader className="pb-3">
-                        <CardDescription>Customers</CardDescription>
-                        <CardTitle className="text-3xl">2,345</CardTitle>
+                        <CardDescription>Total Orders</CardDescription>
+                        <CardTitle className="text-3xl text-orange-600">
+                            {dashboardData?.totalOrders || 0}
+                        </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <p className="text-xs text-muted-foreground">+180 this week</p>
-                    </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader className="pb-3">
-                        <CardDescription>Avg. Order Value</CardDescription>
-                        <CardTitle className="text-3xl">$52.80</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-xs text-muted-foreground">+5.2% from last month</p>
-                    </CardContent>
-                </Card>
+                {isSuperAdmin && (
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardDescription>Top Performing Vendor</CardDescription>
+                            <CardTitle className="text-xl text-cyan-600">
+                                {dashboardData?.topPerformingOutlet?.name || 'N/A'}
+                            </CardTitle>
+                        </CardHeader>
+                    </Card>
+                )}
             </div>
 
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Revenue Trend Chart */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Revenue Trend</CardTitle>
+                    <CardDescription>Daily revenue over the selected period</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {revenueTrend.length > 0 ? (
+                        <div className="h-[300px] w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={revenueTrend} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                    <XAxis
+                                        dataKey="date"
+                                        tick={{ fontSize: 12 }}
+                                        tickFormatter={(val) => formatDateDDMMYYYY(val)}
+                                    />
+                                    <YAxis tick={{ fontSize: 12 }} />
+                                    <Tooltip />
+                                    <Legend />
+                                    <Line type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} name="Revenue (₹)" />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </div>
+                    ) : (
+                        <div className="h-80 flex items-center justify-center text-muted-foreground">
+                            No revenue trend data available for the selected period
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Charts Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Order Status Distribution */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>System Status</CardTitle>
+                        <CardTitle>Order Status</CardTitle>
+                        <CardDescription>Distribution of order statuses</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-2">
-                        <div className="flex justify-between items-center">
-                            <span className="text-sm">Server</span>
-                            <Badge>Online</Badge>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className="text-sm">Database</span>
-                            <Badge>Healthy</Badge>
-                        </div>
+                    <CardContent>
+                        {getOrderStatusPieData().length > 0 ? (
+                            <div className="h-[300px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={getOrderStatusPieData()}
+                                            cx="50%"
+                                            cy="50%"
+                                            labelLine={false}
+                                            label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                                            outerRadius={100}
+                                            fill="#8884d8"
+                                            dataKey="value"
+                                        >
+                                            {getOrderStatusPieData().map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip />
+                                        <Legend />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        ) : (
+                            <div className="h-80 flex items-center justify-center text-muted-foreground">
+                                No order status data available
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
+                {/* Order Source Distribution */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Recent Activity</CardTitle>
+                        <CardTitle>Order Source</CardTitle>
+                        <CardDescription>App vs Manual orders distribution</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-sm text-muted-foreground">5 new orders in the last hour</p>
+                        {getOrderSourcePieData().length > 0 ? (
+                            <div className="h-[300px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={getOrderSourcePieData()}
+                                            cx="50%"
+                                            cy="50%"
+                                            labelLine={false}
+                                            label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                                            outerRadius={100}
+                                            fill="#8884d8"
+                                            dataKey="value"
+                                        >
+                                            {getOrderSourcePieData().map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip />
+                                        <Legend />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        ) : (
+                            <div className="h-80 flex items-center justify-center text-muted-foreground">
+                                No order source data available
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
-                <Card>
+                {/* Top Selling Items */}
+                <Card className="lg:col-span-2">
                     <CardHeader>
-                        <CardTitle>Pending Tasks</CardTitle>
+                        <CardTitle>Top Selling Items</CardTitle>
+                        <CardDescription>Best performing products</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-sm text-muted-foreground">3 tickets awaiting response</p>
+                        {topSellingItems.length > 0 ? (
+                            <div className="h-[300px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={topSellingItems} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                        <XAxis
+                                            dataKey="productName"
+                                            tick={{ fontSize: 11 }}
+                                            interval={0}
+                                        />
+                                        <YAxis tick={{ fontSize: 12 }} />
+                                        <Tooltip />
+                                        <Legend />
+                                        <Bar dataKey="totalOrders" fill="#10b981" name="Total Orders" radius={[4, 4, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        ) : (
+                            <div className="h-80 flex items-center justify-center text-muted-foreground">
+                                No top selling items data available
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
+
+                {/* Peak Time Slots (Commented out) */}
+                {/* 
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Peak Time Slots</CardTitle>
+                        <CardDescription>Order distribution by delivery time</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {peakTimeSlots.length > 0 ? (
+                            <div className="h-[300px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={peakTimeSlots} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                        <XAxis
+                                            dataKey="displayName"
+                                            tick={{ fontSize: 11 }}
+                                            interval={0}
+                                        />
+                                        <YAxis tick={{ fontSize: 12 }} />
+                                        <Tooltip />
+                                        <Legend />
+                                        <Bar dataKey="orderCount" fill="#f59e0b" name="Order Count" radius={[4, 4, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        ) : (
+                            <div className="h-80 flex items-center justify-center text-muted-foreground">
+                                No peak time slots data available
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+                */}
             </div>
         </div>
     )

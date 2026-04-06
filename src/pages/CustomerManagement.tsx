@@ -1,39 +1,96 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
-import { Search } from "lucide-react"
+import { Search, Loader2 } from "lucide-react"
 import { DataTable } from "../components/ui/data-table"
+import { customerService } from "../services"
+import { useOutlet } from "../context/OutletContext"
+import { useAuth } from "../context/AuthContext"
+import { CustomerDetailsDialog } from "../components/dialogs/CustomerDetailsDialog"
 
+// 1. Fixed Interface to match API response exactly
 interface Customer {
     customerId: number
     walletId: number
     name: string
-    year: number
-    phoneNumber: string
-    walletBalance: string
-    totalPurchase: string
+    yearOfStudy: number     // Changed from 'year'
+    phoneNo: string         // Changed from 'phoneNumber'
+    email: string
+    walletBalance: number
+    totalPurchaseCost: number
+    totalOrders: number     // Changed from 'orderCount'
+    lastOrderDate: string | null
 }
-
-const mockCustomers: Customer[] = [
-    { customerId: 1, walletId: 1, name: "Customer1", year: 2, phoneNumber: "8667410952", walletBalance: "₹1035.00", totalPurchase: "₹5119.50" },
-    { customerId: 3, walletId: 4, name: "InAu", year: 3, phoneNumber: "9629772202", walletBalance: "₹0.00", totalPurchase: "₹0.00" },
-    { customerId: 5, walletId: 6, name: "Mutesh Vijayan", year: 4, phoneNumber: "9894111808", walletBalance: "₹0.00", totalPurchase: "₹0.00" },
-    { customerId: 6, walletId: 11, name: "Sharon Adhitya", year: 4, phoneNumber: "9994098046", walletBalance: "₹10.00", totalPurchase: "₹210.00" },
-    { customerId: 7, walletId: 12, name: "Siveesubhan R", year: 4, phoneNumber: "7200018927", walletBalance: "₹425.00", totalPurchase: "₹165.00" },
-    { customerId: 8, walletId: 14, name: "Abshayaa", year: 3, phoneNumber: "6381918926", walletBalance: "₹0.00", totalPurchase: "₹0.00" },
-    { customerId: 9, walletId: 15, name: "Rakshita", year: 4, phoneNumber: "8807785350", walletBalance: "₹0.00", totalPurchase: "₹0.00" },
-    { customerId: 4, walletId: 5, name: "Latha Ilanchelan", year: 1, phoneNumber: "8300114406", walletBalance: "₹67.64", totalPurchase: "₹604.19" },
-    { customerId: 10, walletId: 17, name: "GOPIKUL J", year: 4, phoneNumber: "9360987266", walletBalance: "₹0.00", totalPurchase: "₹0.00" },
-    { customerId: 11, walletId: 18, name: "Arjun M", year: 4, phoneNumber: "9361234567", walletBalance: "₹0.00", totalPurchase: "₹0.00" },
-    { customerId: 12, walletId: 19, name: "Test User", year: 2, phoneNumber: "9876543210", walletBalance: "₹500.00", totalPurchase: "₹1500.00" },
-]
 
 export const CustomerManagement = () => {
     const [searchQuery, setSearchQuery] = useState("")
-    const [customers] = useState(mockCustomers)
+    const [customers, setCustomers] = useState<Customer[]>([])
+    const [loading, setLoading] = useState(true)
+    const [selectedCustomer, setSelectedCustomer] = useState<any>(null)
+    const [isDialogOpen, setIsDialogOpen] = useState(false)
 
-    // Customer Columns
+    const { outletId, loading: outletLoading } = useOutlet()
+    const { user } = useAuth()
+
+    useEffect(() => {
+        // Wait for outlet context to initialize
+        if (outletLoading) return;
+
+        // Fetch initially or when outletId changes (including when it's null/'ALL')
+        fetchCustomers()
+    }, [outletId, user, outletLoading])
+
+    const fetchCustomers = async () => {
+        try {
+            setLoading(true)
+            const targetOutletId = outletId || "ALL"
+            const response = await customerService.getCustomers(targetOutletId)
+            console.log("👥 Raw Response:", response)
+
+            // 2. Fixed Data Extraction Logic
+            // The log shows data is inside response.data.customers
+            let customerData: Customer[] = []
+
+            // Check if response has data property which has customers
+            if ((response as any)?.data?.customers && Array.isArray((response as any).data.customers)) {
+                customerData = (response as any).data.customers
+            } else if ((response as any)?.customers && Array.isArray((response as any).customers)) {
+                // Fallback if service returns the data object directly
+                customerData = (response as any).customers
+            } else if (Array.isArray(response)) {
+                // Fallback if response itself is array
+                customerData = response as any
+            } else if ((response as any).data && Array.isArray((response as any).data)) {
+                // Generic data array
+                customerData = (response as any).data
+            }
+
+            console.log("✅ Set Customers:", customerData)
+            setCustomers(customerData)
+
+        } catch (error) {
+            console.error('Error fetching customers:', error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleViewCustomer = (customer: Customer) => {
+        setSelectedCustomer({
+            id: customer.customerId,
+            walletId: customer.walletId,
+            name: customer.name,
+            email: customer.email || "N/A",
+            walletBalance: customer.walletBalance,
+            totalOrders: customer.totalOrders, // Updated key
+            totalPurchase: customer.totalPurchaseCost, // Updated key
+            lastOrderDate: customer.lastOrderDate || "N/A"
+        })
+        setIsDialogOpen(true)
+    }
+
+    // 3. Updated Columns to use correct accessor keys
     const customerColumns: ColumnDef<Customer>[] = [
         {
             accessorKey: "customerId",
@@ -53,68 +110,87 @@ export const CustomerManagement = () => {
             accessorKey: "name",
             header: "NAME",
             cell: ({ row }) => (
-                <span className="font-medium text-primary">{row.getValue("name")}</span>
+                <span className="font-medium text-primary capitalize">{row.getValue("name")}</span>
             ),
-        },
-        {
-            accessorKey: "year",
-            header: "YEAR",
-        },
-        {
-            accessorKey: "phoneNumber",
-            header: "PHONE NUMBER",
         },
         {
             accessorKey: "walletBalance",
             header: "WALLET BALANCE",
             cell: ({ row }) => (
-                <span className="font-semibold">{row.getValue("walletBalance")}</span>
+                <span className="font-semibold">₹{Number(row.getValue("walletBalance") || 0).toFixed(2)}</span>
             ),
         },
         {
-            accessorKey: "totalPurchase",
+            accessorKey: "totalPurchaseCost", // Fixed key
             header: "TOTAL PURCHASE",
             cell: ({ row }) => (
-                <span className="font-semibold">{row.getValue("totalPurchase")}</span>
+                <span className="font-semibold">₹{Number(row.getValue("totalPurchaseCost") || 0).toFixed(2)}</span>
             ),
         },
         {
             id: "actions",
             header: "ACTIONS",
-            cell: () => (
-                <Button size="sm" className="rounded-full">
+            cell: ({ row }) => (
+                <Button
+                    size="sm"
+                    className="rounded-full"
+                    onClick={() => handleViewCustomer(row.original)}
+                >
                     View
                 </Button>
             ),
         },
     ]
 
+    // 4. Updated Filter Logic
     const filteredCustomers = customers.filter(customer =>
-        customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        customer.phoneNumber.includes(searchQuery) ||
-        customer.customerId.toString().includes(searchQuery)
+        (customer.name?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+        (customer.phoneNo || "").includes(searchQuery) ||
+        (customer.customerId?.toString() || "").includes(searchQuery)
     )
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">
+            <div className="flex flex-col gap-1">
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">Customer Management</h1>
+                <p className="text-muted-foreground">View and manage customer information</p>
+            </div>
+
             {/* Search */}
-            <div className="flex justify-end">
-                <div className="bg-card border-2 border-border rounded-full px-4 py-2 shadow-md flex items-center gap-2 max-w-md">
-                    <Search size={20} className="text-muted-foreground" />
-                    <Input
-                        placeholder="Search by ID or Name"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
-                    />
-                </div>
+            {/* Search - Pill shaped */}
+            <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 flex-1 max-w-md h-11 px-4">
+                <Search size={18} className="text-muted-foreground shrink-0" />
+                <Input
+                    placeholder="Search by ID or Name"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-full"
+                />
             </div>
 
             {/* Customer Details Table */}
-            <div className="bg-sidebar border-2 border-sidebar-border rounded-3xl p-6 shadow-lg">
-                <h3 className="text-lg font-semibold mb-4">Customer Details</h3>
-                <DataTable columns={customerColumns} data={filteredCustomers} />
-            </div>
+            <DataTable columns={customerColumns} data={filteredCustomers} />
+
+            {!loading && filteredCustomers.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                    No customers found.
+                </div>
+            )}
+
+            {/* Customer Details Dialog */}
+            <CustomerDetailsDialog
+                open={isDialogOpen}
+                onClose={() => setIsDialogOpen(false)}
+                customer={selectedCustomer}
+            />
         </div>
     )
 }

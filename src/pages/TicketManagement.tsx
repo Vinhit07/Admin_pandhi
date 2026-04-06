@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
@@ -11,46 +11,77 @@ import {
 } from "../components/ui/select"
 import { Card, CardContent } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
-import { RefreshCw, Search } from "lucide-react"
+import { RefreshCw, Search, Loader2 } from "lucide-react"
 import { DataTable } from "../components/ui/data-table"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from "../components/ui/dialog"
+import { useOutlet } from "../context/OutletContext"
+import { useAuth } from "../context/AuthContext"
+import { ticketService } from "../services/ticketService"
+import toast from "react-hot-toast"
+import { formatDateDDMMYYYY } from "../lib/dateUtils"
+import { TicketDetailsDialog } from "../components/dialogs/TicketDetailsDialog"
+import { TicketChatDialog } from "../components/dialogs/TicketChatDialog"
 
+// 1. Updated Interface to match API Log
 interface Ticket {
-    ticketId: string
-    date: string
+    ticketId: number
+    createdAt: string
+    customerName: string
+    customerEmail: string
     description: string
-    raisedBy: string
-    email: string
-    priority: "high" | "medium" | "low"
-    status: "open" | "closed"
+    priority: string
+    status: string
+    resolutionNote?: string | null
+    resolvedAt?: string | null
 }
 
-const mockTickets: Ticket[] = [
-    { ticketId: "#TCK006", date: "20-12-2025", description: "Login failed", raisedBy: "Latha Ilanchelan", email: "tharinimohan@gmail.com", priority: "medium", status: "open" },
-    { ticketId: "#TCK005", date: "20-12-2019", description: "Payment keeps failing", raisedBy: "Latha Ilanchelan", email: "latha@gmail.com", priority: "high", status: "closed" },
-    { ticketId: "#TCK004", date: "20-12-2019", description: "Payment keeps failing", raisedBy: "Latha Ilanchelan", email: "latha@gmail.com", priority: "high", status: "closed" },
-    { ticketId: "#TCK003", date: "20-12-2019", description: "Order not available for delivery", raisedBy: "Latha Ilanchelan", email: "latha@gmail.com", priority: "high", status: "open" },
-    { ticketId: "#TCK002", date: "20-12-2015", description: "Unable to pay", raisedBy: "Latha Ilanchelan", email: "latha@gmail.com", priority: "high", status: "closed" },
-    { ticketId: "#TCK001", date: "20-12-2010", description: "Unable to login", raisedBy: "Latha Ilanchelan", email: "latha@gmail.com", priority: "medium", status: "closed" },
-]
-
 export const TicketManagement = () => {
+    const { outletId, loading: outletLoading } = useOutlet()
+    const { user } = useAuth()
+
     const [searchQuery, setSearchQuery] = useState("")
-    const [priorityFilter, setPriorityFilter] = useState("all")
-    const [tickets] = useState(mockTickets)
+    const [statusFilter, setStatusFilter] = useState("all")
+
+    const [tickets, setTickets] = useState<Ticket[]>([])
+    const [loading, setLoading] = useState(false)
+
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
     const [isViewModalOpen, setIsViewModalOpen] = useState(false)
     const [isChatModalOpen, setIsChatModalOpen] = useState(false)
-    const [chatMessage, setChatMessage] = useState("")
+
+    useEffect(() => {
+        // Wait for outlet context to initialize
+        if (outletLoading) return;
+
+        // Fetch initially or when outletId changes (including when it's null/'ALL')
+        setLoading(true)
+        fetchTickets()
+    }, [outletId, user, outletLoading])
+
+    const fetchTickets = async () => {
+        try {
+            setLoading(true)
+            const targetOutletId = outletId || "ALL"
+            const response = await ticketService.getTickets(targetOutletId)
+            console.log("🎫 Tickets Response:", response)
+
+            // 2. FIXED: Removed 'response.success' check. 
+            // The log shows the data is directly in response.data
+            const ticketData = response.data || []
+
+            setTickets(Array.isArray(ticketData) ? ticketData : [])
+
+        } catch (error) {
+            console.error("Error fetching tickets:", error)
+            toast.error("Failed to load tickets")
+        } finally {
+            setLoading(false)
+        }
+    }
 
     const handleRefresh = () => {
+        fetchTickets()
         setSearchQuery("")
-        setPriorityFilter("all")
+        setStatusFilter("all")
     }
 
     const handleViewTicket = (ticket: Ticket) => {
@@ -63,62 +94,71 @@ export const TicketManagement = () => {
         setIsChatModalOpen(true)
     }
 
-    const handleSendAndClose = () => {
-        console.log("Sending message:", chatMessage)
-        setChatMessage("")
-        setIsChatModalOpen(false)
-    }
-
-    const getPriorityBadge = (priority: string) => {
-        const variants: Record<string, { className: string }> = {
-            "high": { className: "bg-red-100 text-red-800 hover:bg-red-100" },
-            "medium": { className: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100" },
-            "low": { className: "bg-green-100 text-green-800 hover:bg-green-100" }
+    const handleResolveTicket = async (ticketId: string, resolutionNote: string) => {
+        try {
+            const resolvedAt = new Date().toISOString()
+            const response = await ticketService.closeTicket(Number(ticketId), resolutionNote, resolvedAt)
+            // Adjust this check depending on your closeTicket API response
+            if (response) {
+                toast.success("Ticket resolved successfully")
+                fetchTickets()
+                setIsChatModalOpen(false)
+            }
+        } catch (error: any) {
+            console.error("Error resolving ticket:", error)
+            // Extract error message from API response if available
+            const errorMsg = error.response?.data?.message || error.message || "Failed to resolve ticket";
+            toast.error(errorMsg)
         }
-        const config = variants[priority] || variants["medium"]
-        return <Badge className={config.className}>{priority}</Badge>
     }
 
     const getStatusBadge = (status: string) => {
         const variants: Record<string, { className: string }> = {
-            "open": { className: "bg-green-100 text-green-800 hover:bg-green-100" },
-            "closed": { className: "bg-red-100 text-red-800 hover:bg-red-100" }
+            "OPEN": { className: "bg-green-100 text-green-800 hover:bg-green-100" },
+            "IN_PROGRESS": { className: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100" },
+            "RESOLVED": { className: "bg-blue-100 text-blue-800 hover:bg-blue-100" },
+            "CLOSED": { className: "bg-red-100 text-red-800 hover:bg-red-100" }
         }
-        const config = variants[status] || variants["open"]
+        const config = variants[status] || variants["OPEN"]
         return <Badge className={config.className}>{status}</Badge>
     }
 
-    // Ticket Columns
+    // 3. FIXED: Columns to match API keys (ticketId, priority, etc)
     const ticketColumns: ColumnDef<Ticket>[] = [
         {
-            accessorKey: "ticketId",
+            accessorKey: "ticketId", // Changed from 'id'
             header: "TICKET ID",
             cell: ({ row }) => (
-                <span className="font-medium text-primary">{row.getValue("ticketId")}</span>
+                <span className="font-medium text-primary">#{row.getValue("ticketId")}</span>
             ),
         },
         {
-            accessorKey: "date",
+            accessorKey: "createdAt",
             header: "DATE",
+            cell: ({ row }) => formatDateDDMMYYYY(row.getValue("createdAt"))
+        },
+        {
+            accessorKey: "priority", // API has priority, not issueType
+            header: "PRIORITY",
+            cell: ({ row }) => (
+                <span className="uppercase text-xs font-bold text-muted-foreground">
+                    {row.getValue("priority")}
+                </span>
+            )
         },
         {
             accessorKey: "description",
-            header: "TICKET DESCRIPTION",
+            header: "DESCRIPTION",
             cell: ({ row }) => (
-                <span className="font-medium text-primary">{row.getValue("description")}</span>
+                <div className="max-w-[200px] truncate" title={row.getValue("description")}>
+                    {row.getValue("description")}
+                </div>
             ),
         },
         {
-            accessorKey: "raisedBy",
-            header: "TICKET RAISED BY",
-            cell: ({ row }) => (
-                <span className="font-medium text-primary">{row.getValue("raisedBy")}</span>
-            ),
-        },
-        {
-            accessorKey: "priority",
-            header: "PRIORITY",
-            cell: ({ row }) => getPriorityBadge(row.getValue("priority")),
+            accessorKey: "customerName",
+            header: "CUSTOMER",
+            cell: ({ row }) => row.original.customerName || "N/A"
         },
         {
             accessorKey: "status",
@@ -142,45 +182,62 @@ export const TicketManagement = () => {
                         variant="secondary"
                         className="rounded-full"
                         onClick={() => handleChatTicket(row.original)}
+                        disabled={row.original.status === 'CLOSED'}
                     >
-                        Chat
+                        {row.original.status === 'CLOSED' ? 'Closed' : 'Resolve'}
                     </Button>
                 </div>
             ),
         },
     ]
 
+    // 4. FIXED: Filter Logic using correct keys
     const filteredTickets = tickets.filter(ticket => {
-        const matchesSearch = ticket.ticketId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        const matchesSearch =
+            ticket.ticketId.toString().includes(searchQuery) ||
             ticket.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            ticket.raisedBy.toLowerCase().includes(searchQuery.toLowerCase())
-        const matchesPriority = priorityFilter === "all" || ticket.priority === priorityFilter
-        return matchesSearch && matchesPriority
+            (ticket.customerName || '').toLowerCase().includes(searchQuery.toLowerCase())
+
+        const matchesStatus = statusFilter === "all" || ticket.status === statusFilter
+        return matchesSearch && matchesStatus
     })
 
     const totalTickets = tickets.length
-    const openTickets = tickets.filter(t => t.status === "open").length
-    const closedTickets = tickets.filter(t => t.status === "closed").length
+    const openTickets = tickets.filter(t => t.status === "OPEN").length
+    const closedTickets = tickets.filter(t => t.status === "CLOSED").length
+
+    if (loading && tickets.length === 0) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">
+            <div className="flex flex-col gap-1">
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">Ticket Management</h1>
+                <p className="text-muted-foreground">Manage and resolve customer support tickets</p>
+            </div>
+
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="rounded-2xl border-2">
+                <Card className="rounded-xl border border-border/50 shadow-sm">
                     <CardContent className="p-6 text-center">
                         <p className="text-sm text-muted-foreground mb-2">Total tickets</p>
                         <p className="text-4xl font-bold text-primary">{totalTickets}</p>
                     </CardContent>
                 </Card>
 
-                <Card className="rounded-2xl border-2">
+                <Card className="rounded-xl border border-border/50 shadow-sm">
                     <CardContent className="p-6 text-center">
                         <p className="text-sm text-muted-foreground mb-2">Open Tickets</p>
                         <p className="text-4xl font-bold text-primary">{openTickets}</p>
                     </CardContent>
                 </Card>
 
-                <Card className="rounded-2xl border-2">
+                <Card className="rounded-xl border border-border/50 shadow-sm">
                     <CardContent className="p-6 text-center">
                         <p className="text-sm text-muted-foreground mb-2">Closed Tickets</p>
                         <p className="text-4xl font-bold text-primary">{closedTickets}</p>
@@ -191,17 +248,18 @@ export const TicketManagement = () => {
             {/* Filters and Search */}
             <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    {/* Priority Filter */}
-                    <div className="bg-card border-2 border-border rounded-full px-4 py-2 shadow-md">
-                        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                            <SelectTrigger className="w-[180px] border-0 focus:ring-0">
-                                <SelectValue placeholder="All Priorities" />
+                    {/* Status Filter */}
+                    <div className="bg-card rounded-xl shadow-sm border border-border/50 h-11 px-4">
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <SelectTrigger className="w-[180px] border-0 focus:ring-0 h-full p-0">
+                                <SelectValue placeholder="All Statuses" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">All Priorities</SelectItem>
-                                <SelectItem value="high">High</SelectItem>
-                                <SelectItem value="medium">Medium</SelectItem>
-                                <SelectItem value="low">Low</SelectItem>
+                                <SelectItem value="all">All Statuses</SelectItem>
+                                <SelectItem value="OPEN">Open</SelectItem>
+                                <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                                <SelectItem value="RESOLVED">Resolved</SelectItem>
+                                <SelectItem value="CLOSED">Closed</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -209,18 +267,18 @@ export const TicketManagement = () => {
 
                 <div className="flex items-center gap-4">
                     {/* Search */}
-                    <div className="bg-card border-2 border-border rounded-full px-4 py-2 shadow-md flex items-center gap-2 max-w-md">
-                        <Search size={20} className="text-muted-foreground" />
+                    <div className="bg-card rounded-xl shadow-sm border border-border/50 flex items-center gap-2 max-w-md h-11 px-4">
+                        <Search size={18} className="text-muted-foreground shrink-0" />
                         <Input
-                            placeholder="Search by Id, description or name"
+                            placeholder="Search by ID, description or name"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
+                            className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-full"
                         />
                     </div>
 
                     {/* Refresh Button */}
-                    <Button onClick={handleRefresh} className="rounded-full px-6 shadow-md">
+                    <Button onClick={handleRefresh} className="rounded-xl h-11 px-6 shadow-sm border border-border/10">
                         <RefreshCw size={18} className="mr-2" />
                         Refresh
                     </Button>
@@ -228,91 +286,37 @@ export const TicketManagement = () => {
             </div>
 
             {/* Ticket Details Table */}
-            <div className="bg-sidebar border-2 border-sidebar-border rounded-3xl p-6 shadow-lg">
-                <h3 className="text-lg font-semibold mb-4">Ticket Details</h3>
-                <DataTable columns={ticketColumns} data={filteredTickets} />
-            </div>
+            <DataTable columns={ticketColumns} data={filteredTickets} />
 
-            {/* View Details Modal */}
-            <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
-                <DialogContent className="sm:max-w-md rounded-3xl">
-                    <DialogHeader>
-                        <DialogTitle>Ticket Details: {selectedTicket?.ticketId}</DialogTitle>
-                    </DialogHeader>
-                    {selectedTicket && (
-                        <div className="space-y-4 py-4">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Date:</p>
-                                <p className="text-base">{selectedTicket.date}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Description:</p>
-                                <p className="text-base">{selectedTicket.description}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Raised By:</p>
-                                <p className="text-base">{selectedTicket.raisedBy}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Email:</p>
-                                <p className="text-base">{selectedTicket.email}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Priority:</p>
-                                <p className="text-base">{selectedTicket.priority}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Status:</p>
-                                <p className="text-base">{selectedTicket.status}</p>
-                            </div>
-                            <div className="flex justify-end pt-4">
-                                <Button onClick={() => setIsViewModalOpen(false)} className="rounded-full">
-                                    Close
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
+            {/* Ticket Details Dialog */}
+            {selectedTicket && (
+                <TicketDetailsDialog
+                    open={isViewModalOpen}
+                    onClose={() => setIsViewModalOpen(false)}
+                    // 5. FIXED: Mapping API data to Dialog props
+                    ticket={{
+                        id: String(selectedTicket.ticketId),
+                        date: formatDateDDMMYYYY(selectedTicket.createdAt),
+                        description: selectedTicket.description,
+                        raisedBy: selectedTicket.customerName || "N/A",
+                        email: selectedTicket.customerEmail || "N/A",
+                        priority: selectedTicket.priority || "MEDIUM",
+                        status: selectedTicket.status,
+                        resolutionNote: selectedTicket.resolutionNote,
+                        resolvedAt: selectedTicket.resolvedAt
+                    }}
+                />
+            )}
 
-            {/* Chat Modal */}
-            <Dialog open={isChatModalOpen} onOpenChange={setIsChatModalOpen}>
-                <DialogContent className="sm:max-w-md rounded-3xl">
-                    <DialogHeader>
-                        <DialogTitle>Chat: {selectedTicket?.ticketId}</DialogTitle>
-                    </DialogHeader>
-                    {selectedTicket && (
-                        <div className="space-y-4 py-4">
-                            {/* Chat Messages */}
-                            <div className="bg-muted rounded-2xl p-4 min-h-[200px]">
-                                <div className="space-y-3">
-                                    <div className="bg-background rounded-xl p-3">
-                                        <p className="text-sm font-medium">{selectedTicket.description}</p>
-                                        <p className="text-xs text-muted-foreground mt-1">- {selectedTicket.raisedBy}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Message Input */}
-                            <div className="space-y-2">
-                                <Input
-                                    placeholder="Type your resolution message..."
-                                    value={chatMessage}
-                                    onChange={(e) => setChatMessage(e.target.value)}
-                                    className="rounded-xl"
-                                />
-                            </div>
-
-                            {/* Send Button */}
-                            <div className="flex justify-end">
-                                <Button onClick={handleSendAndClose} className="rounded-full">
-                                    Send & Close Ticket
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
+            {/* Ticket Chat/Resolve Dialog */}
+            <TicketChatDialog
+                open={isChatModalOpen}
+                onClose={() => setIsChatModalOpen(false)}
+                ticketId={String(selectedTicket?.ticketId || "")}
+                ticketDescription={selectedTicket?.description || ""}
+                customerName={selectedTicket?.customerName || "N/A"}
+                onResolve={handleResolveTicket}
+            />
         </div>
     )
 }

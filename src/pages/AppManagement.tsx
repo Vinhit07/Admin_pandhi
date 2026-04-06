@@ -129,23 +129,23 @@ export const AppManagement = () => {
                 <h1 className="text-3xl font-bold text-foreground">App Management</h1>
             </div>
 
-            {/* Tabs Container - same style as Expenditure Management */}
-            <div className="bg-sidebar border-2 border-sidebar-border rounded-3xl p-6 shadow-lg">
-                <Tabs defaultValue="mobile" className="w-full">
-                    <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
-                        <TabsTrigger value="mobile">Mobile App</TabsTrigger>
-                        <TabsTrigger value="preorder">Preorder Settings</TabsTrigger>
-                    </TabsList>
+            {/* Removed the heavy outer container and kept the Tabs structure flat */}
+            <Tabs defaultValue="mobile" className="w-full">
+                <TabsList className="grid w-full max-w-md grid-cols-2 mb-6 h-12">
+                    <TabsTrigger value="mobile" className="rounded-lg">Mobile App</TabsTrigger>
+                    <TabsTrigger value="preorder" className="rounded-lg">Preorder Settings</TabsTrigger>
+                </TabsList>
 
-                    {/* Mobile App Tab */}
-                    <TabsContent value="mobile" className="space-y-6">
-                        <h2 className="text-lg font-semibold">Mobile App Permission</h2>
+                {/* Mobile App Tab */}
+                <TabsContent value="mobile" className="space-y-6">
+                    <div className="bg-card border border-border/50 rounded-xl p-6 shadow-sm">
+                        <h2 className="text-lg font-semibold mb-6">Mobile App Permission</h2>
 
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                             {permissions.map((permission) => (
                                 <div
                                     key={permission.id}
-                                    className="flex items-center justify-between py-3 border-b border-border last:border-0"
+                                    className="flex items-center justify-between py-4 border-b border-border/50 last:border-0"
                                 >
                                     <span className="text-foreground font-medium">{permission.name}</span>
                                     <Switch
@@ -157,72 +157,74 @@ export const AppManagement = () => {
                             ))}
                         </div>
 
-                        <div className="flex justify-end">
+                        <div className="flex justify-end mt-6">
                             <Button
                                 onClick={handleUpdateDetails}
-                                className="bg-primary hover:bg-primary/90"
+                                className="rounded-xl h-11 px-6 shadow-sm"
                             >
                                 Update Details
                             </Button>
                         </div>
-                    </TabsContent>
+                    </div>
+                </TabsContent>
 
-                    {/* Preorder Settings Tab */}
-                    <TabsContent value="preorder" className="space-y-6">
-                        <h2 className="text-lg font-semibold">Preorder Settings - Non-Availability Management</h2>
+                {/* Preorder Settings Tab */}
+                <TabsContent value="preorder" className="space-y-6">
+                    <div className="bg-card border border-border/50 rounded-xl p-6 shadow-sm">
+                        <h2 className="text-lg font-semibold mb-6">Preorder Settings - Non-Availability Management</h2>
 
                         {/* Calendar Header */}
-                        <div className="flex items-center justify-between max-w-lg mx-auto">
+                        <div className="flex items-center justify-between max-w-lg mx-auto mb-6">
                             <button
                                 onClick={prevMonth}
-                                className="p-2 hover:bg-muted rounded-md transition-colors"
+                                className="p-2 hover:bg-muted rounded-lg transition-colors border border-border/50"
                             >
                                 <ChevronLeft className="w-5 h-5" />
                             </button>
-                            <span className="text-lg font-medium">
+                            <span className="text-lg font-semibold">
                                 {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
                             </span>
                             <button
                                 onClick={nextMonth}
-                                className="p-2 hover:bg-muted rounded-md transition-colors"
+                                className="p-2 hover:bg-muted rounded-lg transition-colors border border-border/50"
                             >
                                 <ChevronRight className="w-5 h-5" />
                             </button>
                         </div>
 
                         {/* Calendar Grid */}
-                        <div className="max-w-lg mx-auto">
+                        <div className="max-w-lg mx-auto mb-6">
                             {/* Day Headers */}
                             <div className="grid grid-cols-7 gap-1 mb-2">
                                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                                    <div key={day} className="h-10 flex items-center justify-center text-sm font-medium text-muted-foreground">
+                                    <div key={day} className="h-10 flex items-center justify-center text-xs font-bold text-muted-foreground uppercase">
                                         {day}
                                     </div>
                                 ))}
                             </div>
 
                             {/* Calendar Days */}
-                            <div className="grid grid-cols-7 gap-1">
+                            <div className="grid grid-cols-7 gap-2">
                                 {renderCalendar()}
                             </div>
                         </div>
 
                         {/* Instructions */}
-                        <p className="text-sm text-muted-foreground max-w-lg mx-auto">
-                            Select dates <span className="text-red-500">that should be marked as non-available (red dates)</span>. Past dates cannot be selected. All time slots will be marked as unavailable for selected dates.
+                        <p className="text-sm text-muted-foreground max-w-lg mx-auto mb-6 bg-muted/30 p-4 rounded-lg">
+                            Select dates <span className="text-red-500 font-medium">that should be marked as non-available (red dates)</span>. Past dates cannot be selected. All time slots will be marked as unavailable for selected dates.
                         </p>
 
-                        <div className="flex justify-end">
+                        <div className="flex justify-end pt-4 border-t border-border/50">
                             <Button
                                 onClick={handleUpdateDetails}
-                                className="bg-primary hover:bg-primary/90"
+                                className="rounded-xl h-11 px-6 shadow-sm"
                             >
                                 Update Details
                             </Button>
                         </div>
-                    </TabsContent>
-                </Tabs>
-            </div>
+                    </div>
+                </TabsContent>
+            </Tabs>
         </div>
     )
 }
